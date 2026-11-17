@@ -223,8 +223,12 @@ func _add_mac_page(sub: Control) -> void:
 	ui.add_child(page)
 	ui.move_child(page, sub.get_index() + 1)
 	menu.screens.append(page)  # the game hides it along with its other pages
-	_add_row(av, page, "fill", "FILL SCREEN 16:10 *", 58.0 - 83.0,
+	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", 58.0 - 83.0,
 		func(): return fill, func(): fill = not fill)
+	if bracket:
+		# the game shows option brackets only while a controller is in use
+		menu.controller.brackets.append(bracket)
+		bracket.visible = menu.cursor.controller_active
 	var note := av.get_node("text_greyscale death").duplicate() as Label
 	note.text = "* EXPERIMENTAL"
 	note.position.y += 400.0 - 83.0
@@ -258,14 +262,14 @@ func _clone_button(label: Label, button: Button, parent: Node, text: String, dy:
 	return bc
 
 
-func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get_value: Callable, flip: Callable) -> void:
+func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get_value: Callable, flip: Callable) -> CanvasItem:
 	# a checkbox row copied from the game's GREYSCALE DEATH row
 	var src_text := src.get_node_or_null("text_greyscale death") as Label
 	var src_check := src.get_node_or_null("checkmark_greyscale") as TextureRect
 	var src_bracket := src.get_node_or_null("bracket selection_greyscale death") as CanvasItem
 	var src_button := src.get_node_or_null("true button_greyscale death") as Button
 	if not (src_text and src_check and src_bracket and src_button):
-		return
+		return null
 	var text := src_text.duplicate() as Label
 	text.text = label
 	var check := src_check.duplicate() as TextureRect
@@ -285,3 +289,4 @@ func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get
 		flip.call()
 		_save()
 		branch.UpdateCheckmark(get_value.call()))
+	return bracket
