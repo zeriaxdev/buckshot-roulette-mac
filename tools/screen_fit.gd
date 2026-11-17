@@ -13,6 +13,8 @@ var fill := false
 var _shift := 0.0
 var _top := 0.0  # notch row, in game pixels, kept black
 var _bar: ColorRect
+var _candidates: Array[Control] = []  # plain colour/image layers not yet matched as full-screen
+var _recheck := 0.0
 
 
 func _ready() -> void:
@@ -39,8 +41,7 @@ func _ready() -> void:
 	_apply()
 
 
-func set_fill(value: bool) -> void:
-	fill = value
+func _save() -> void:
 	var out := FileAccess.open(SETTINGS, FileAccess.WRITE)
 	if out:
 		out.store_string(JSON.stringify({"fill_screen": fill}))
@@ -54,17 +55,18 @@ func _apply() -> void:
 	var visible := root.get_visible_rect().size
 	_top = 0.0
 	if fill and root.mode >= Window.MODE_FULLSCREEN:
-		# On a notched MacBook the fullscreen window includes the notch row, where the
-		# menu bar shows through. Keep that row black and centre the game below it.
-		var screen := root.current_screen
+		# On a notched MacBook the fullscreen window includes the notch row: keep that
+		# row black and centre the game below it.
+		# only the part of the notch row that actually overlaps the window (macOS usually
+		# places fullscreen windows below the notch already, then this is 0)
 		var safe := DisplayServer.get_display_safe_area()
-		var top_px := float(safe.position.y - DisplayServer.screen_get_position(screen).y)
-		_top = maxf(0.0, top_px * visible.y / float(root.size.y))
+		var top_px := float(safe.position.y - root.position.y)
+		_top = ceilf(maxf(0.0, top_px * visible.y / float(root.size.y)))  # whole pixels: no half-covered line
 	_shift = maxf(0.0, _top + (visible.y - _top - BASE.y) / 2.0) if fill else 0.0
 	if OS.has_environment("MAC_SCREEN_DEBUG"):
 		var f := FileAccess.open("user://mac_screen_debug.txt", FileAccess.WRITE)
-		f.store_line("mode=%d window=%s visible=%s screen=%s safe=%s title_margins=%s top=%.1f shift=%.1f scale=%.3f" % [
-			root.mode, root.size, visible, DisplayServer.screen_get_size(root.current_screen),
+		f.store_line("winpos=%s mode=%d window=%s visible=%s screen=%s safe=%s title_margins=%s top=%.1f shift=%.1f scale=%.3f" % [
+			root.position, root.mode, root.size, visible, DisplayServer.screen_get_size(root.current_screen),
 			DisplayServer.get_display_safe_area(), DisplayServer.window_get_safe_title_margins(),
 			_top, _shift, DisplayServer.screen_get_scale(root.current_screen)])
 		f.close()
@@ -76,16 +78,16 @@ func _apply() -> void:
 
 func _walk(node: Node) -> void:
 	_fit(node)
-	if node.name == "options_audio video":
-		_add_toggle.call_deferred(node)  # the first menu loads before this helper starts
+	if node.name == "sub options select":
+		_add_mac_page.call_deferred(node)  # the first menu loads before this helper starts
 	for child in node.get_children():
 		_walk(child)
 
 
 func _on_node_added(node: Node) -> void:
 	_fit(node)
-	if node.name == "options_audio video":
-		_add_toggle.call_deferred(node)
+	if node.name == "sub options select":
+		_add_mac_page.call_deferred(node)
 
 
 func _fit(node: Node) -> void:
@@ -93,25 +95,44 @@ func _fit(node: Node) -> void:
 		if not node.has_meta("mac_offset"):
 			node.set_meta("mac_offset", node.offset)
 		node.offset = node.get_meta("mac_offset") + Vector2(0, _shift)
-	elif node is Control:
+	elif (node is ColorRect or node is Panel or node is TextureRect) and not node.get_children().any(func(c): return c is Control):
+		if not node in _candidates:
+			_candidates.append(node)
 		_fit_overlay.call_deferred(node)  # after the game has laid it out
 
 
 func _fit_overlay(node: Control) -> void:
 	# Plain full-screen colour or shader layers (fades, darkening, the posterize post-process,
-	# VHS grain) only cover the 16:9 band. Stretch them over the whole screen. Images and
-	# containers with buttons or text keep their 16:9 layout.
+	# VHS grain) only cover the 16:9 band: stretch them over the whole screen. Full-screen
+	# images (loading screen, death screen) keep their shape and get black behind them.
 	if not is_instance_valid(node) or not node.is_inside_tree():
 		return
 	if not node.has_meta("mac_overlay"):
+		# not cached when it doesn't match: intro animations can move a layer into place later
 		var r := node.get_global_rect()
-		var plain := (node is ColorRect or node is Panel) and node.get_children().all(func(c): return not (c is Control))
 		var covers := r.position.x <= 1.0 and r.position.y <= 1.0 and r.end.x >= BASE.x - 1.0 and r.end.y >= BASE.y - 1.0
-		node.set_meta("mac_overlay", [r.position, r.size] if plain and covers else null)
+		if not covers:
+			return
+		node.set_meta("mac_overlay", [r.position, r.size, "backfill" if node is TextureRect else "stretch"])
+		_candidates.erase(node)
 	var saved = node.get_meta("mac_overlay")
-	if saved == null:
+	var visible := get_tree().root.get_visible_rect().size
+	if saved[2] == "backfill":
+		# black only above and below the image, so fades stay even across the screen
+		var bands := [[-_shift, saved[0].y], [saved[0].y + saved[1].y, visible.y - _shift]]
+		for i in 2:
+			var band := node.get_node_or_null("mac_band%d" % i) as ColorRect
+			if band == null:
+				band = ColorRect.new()
+				band.name = "mac_band%d" % i
+				band.color = Color.BLACK
+				band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				node.add_child(band)
+			band.visible = fill
+			band.global_position = Vector2(0, bands[i][0])
+			band.size = Vector2(maxf(visible.x, BASE.x), maxf(0.0, bands[i][1] - bands[i][0]))
 		return
-	var extra := get_tree().root.get_visible_rect().size.y - BASE.y
+	var extra := visible.y - BASE.y
 	if fill:
 		node.global_position = Vector2(saved[0].x, saved[0].y - _shift)
 		node.size = Vector2(saved[1].x, saved[1].y + extra)
@@ -120,7 +141,15 @@ func _fit_overlay(node: Control) -> void:
 		node.size = saved[1]
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_recheck += delta
+	if _recheck > 0.2:
+		_recheck = 0.0
+		for node in _candidates.duplicate():
+			if not is_instance_valid(node) or not node.is_inside_tree():
+				_candidates.erase(node)
+			elif node.is_visible_in_tree():
+				_fit_overlay(node)
 	# The game's camera angles are vertical (Keep Height). For a taller screen, keep the
 	# horizontal view of the 16:9 game and show more above and below instead. Done every
 	# frame because some scenes animate the camera's angle.
@@ -143,43 +172,75 @@ func _process(_delta: float) -> void:
 	cam.set_meta("mac_set", horizontal)
 
 
-func _add_toggle(page: Node) -> void:
-	# Adds "FILL SCREEN 16:10 (EXPERIMENTAL)" to the game's Audio/Video options, one row above
-	# COLOR BLIND MODE, built from copies of the GREYSCALE DEATH row so it looks and
-	# behaves like the game's own checkboxes. Mouse only for now.
-	if not is_instance_valid(page) or page.has_node("mac_text_fill"):
+func _add_mac_page(sub: Control) -> void:
+	# Options gets a MAC entry above AUDIO/VIDEO that opens its own page, built from
+	# copies of the game's own labels, checkboxes and buttons. The game's own pages stay
+	# exactly as they are.
+	if not is_instance_valid(sub) or sub.has_node("mac_entry"):
 		return
-	var src_text := page.get_node_or_null("text_greyscale death") as Label
-	var src_check := page.get_node_or_null("checkmark_greyscale") as TextureRect
-	var src_bracket := page.get_node_or_null("bracket selection_greyscale death") as CanvasItem
-	var src_button := page.get_node_or_null("true button_greyscale death") as Button
+	var ui := sub.get_parent()
+	var av := ui.get_node_or_null("options_audio video")
+	var menu: Node = null
+	for n in get_tree().root.find_children("*", "Node", true, false):
+		if n.has_method("Options_AudioVideo"):
+			menu = n
+			break
+	if av == null or menu == null:
+		return
+	# the page
+	var page := Control.new()
+	page.name = "options_mac"
+	page.visible = false
+	ui.add_child(page)
+	ui.move_child(page, sub.get_index() + 1)
+	menu.screens.append(page)  # the game hides it along with its other pages
+	_add_row(av, page, "fill", "FILL SCREEN 16:10 (EXPERIMENTAL)", 58.0 - 83.0,
+		func(): return fill, func(): fill = not fill)
+	var back := _clone_button(av.get_node("button_exit options"), av.get_node("true button_return audio video"), page, "RETURN", 0.0)
+	back.is_pressed.connect(func(): menu.Show("sub options"))
+	# the MAC entry, one row above AUDIO/VIDEO
+	var entry := _clone_button(sub.get_node("button_audio video"), sub.get_node("true button_audio video"), sub, "MAC", -25.0)
+	entry.get_parent().name = "mac_entry"
+	entry.is_pressed.connect(func():
+		menu.Show("mac")
+		page.visible = true)
+
+
+func _clone_button(label: Label, button: Button, parent: Node, text: String, dy: float) -> Node:
+	var l := label.duplicate() as Label
+	l.text = text
+	l.position.y += dy
+	var b := button.duplicate() as Button
+	b.position.y += dy
+	parent.add_child(l)
+	parent.add_child(b)
+	var bc := b.get_child(0)
+	bc.ui = l
+	return bc
+
+
+func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get_value: Callable, flip: Callable) -> void:
+	# a checkbox row copied from the game's GREYSCALE DEATH row
+	var src_text := src.get_node_or_null("text_greyscale death") as Label
+	var src_check := src.get_node_or_null("checkmark_greyscale") as TextureRect
+	var src_bracket := src.get_node_or_null("bracket selection_greyscale death") as CanvasItem
+	var src_button := src.get_node_or_null("true button_greyscale death") as Button
 	if not (src_text and src_check and src_bracket and src_button):
 		return
-	var dy := -50.0  # greyscale row is at y 83, colour blind at 58: this row goes at 33
 	var text := src_text.duplicate() as Label
-	text.name = "mac_text_fill"
-	text.text = "FILL SCREEN 16:10 (EXPERIMENTAL)"
-	text.position.y += dy
+	text.text = label
 	var check := src_check.duplicate() as TextureRect
-	check.name = "mac_check_fill"
-	check.position.y += dy
 	var bracket := src_bracket.duplicate() as CanvasItem
-	bracket.name = "mac_bracket_fill"
-	bracket.position.y += dy
 	var button := src_button.duplicate() as Button
-	button.name = "mac_button_fill"
-	button.position.y += dy
 	for n in [text, check, bracket, button]:
-		page.add_child(n)
+		n.position.y += dy
+		parent.add_child(n)
 	var branch := check.get_child(0)
 	branch.ui = check  # the copy still pointed at the greyscale checkmark
 	var bc := button.get_child(0)
 	bc.ui = bracket
-	branch.UpdateCheckmark(fill)
-	if OS.has_environment("MAC_SCREEN_DEBUG"):
-		var f := FileAccess.open("user://mac_screen_toggle.txt", FileAccess.WRITE)
-		f.store_line("toggle added to %s visible=%s" % [page.get_path(), text.is_visible_in_tree()])
-		f.close()
+	branch.UpdateCheckmark(get_value.call())
 	bc.is_pressed.connect(func():
-		set_fill(not fill)
-		branch.UpdateCheckmark(fill))
+		flip.call()
+		_save()
+		branch.UpdateCheckmark(get_value.call()))
