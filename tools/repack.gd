@@ -25,6 +25,12 @@ func walk(base: String, rel: String, from_pack: bool):
 	for d in da.get_directories():
 		walk(base, rel.path_join(d) if rel != "" else d, from_pack)
 
+func write(base: String, rel: String, text: String):
+	DirAccess.make_dir_recursive_absolute(base.path_join(rel).get_base_dir())
+	var f := FileAccess.open(base.path_join(rel), FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+
 func fail(msg: String):
 	printerr("REPACK ERROR: " + msg)
 	quit(1)
@@ -52,6 +58,18 @@ func _initialize():
 		var d := DirAccess.open(extras.path_join(rel)); d.include_hidden = true
 		for f in d.get_files(): skip[rel.path_join(f) if rel != "" else f] = true
 		for s in d.get_directories(): stack.append(rel.path_join(s) if rel != "" else s)
+	# Godot 4.4+ compatibility: Resources may not export Node fields (these are never set),
+	# and the global class list needs the is_abstract/is_tool keys.
+	var item := "multiplayer/scripts/user scripts/MP_ItemResource_User.gd"
+	var item_src := FileAccess.get_file_as_string("res://" + item)
+	for field in ["R_assigned_hand", "R_assigned_mesh", "L_assigned_hand", "L_assigned_mesh"]:
+		item_src = item_src.replace("@export var %s : Node3D" % field, "var %s : Node3D" % field)
+	write(extras, item, item_src)
+	var cache := FileAccess.get_file_as_string("res://.godot/global_script_class_cache.cfg")
+	if not cache.contains("is_tool"):
+		cache = cache.replace('"icon": "",', '"icon": "",\n"is_abstract": false,\n"is_tool": false,')
+	write(extras, ".godot/global_script_class_cache.cfg", cache)
+	for f in [item, ".godot/global_script_class_cache.cfg"]: skip[f] = true
 	if packer.pck_start(a[0]) != OK: return fail("cannot create " + a[0])
 	walk("res://", "", true)
 	walk(extras, "", false)

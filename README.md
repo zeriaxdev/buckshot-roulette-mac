@@ -1,6 +1,6 @@
 # Buckshot Roulette for macOS
 
-An unofficial native Mac version of [Buckshot Roulette](https://store.steampowered.com/app/2835570/), built on your Mac from **your own Steam copy**. Steam achievements, the Steam overlay (Shift+Tab) and online lobbies work.
+An unofficial native Mac version of [Buckshot Roulette](https://store.steampowered.com/app/2835570/), built on your Mac from **your own Steam copy**. Runs natively on Metal. Steam achievements, the Steam overlay (Shift+Tab), Invite Friends, online lobbies and PlayStation controllers work.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ An unofficial native Mac version of [Buckshot Roulette](https://store.steampower
 
 ## Background
 
-Buckshot Roulette is only released for Windows. Under the hood it's a Godot 4.1 game, and Godot runs natively on macOS. This repository contains a builder that takes the Windows game files Steam downloads for your account and wraps them in the official Godot macOS runtime with Steam support.
+Buckshot Roulette is only released for Windows. Under the hood it's a Godot 4.1 game, and Godot runs natively on macOS. This repository contains a builder that takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 macOS runtime, which renders with Metal and reads controllers through Apple's GameController framework, with Steam support added.
 
 No part of the game is in this repository, and the builder doesn't download the game either. You need to own it on Steam. Please buy it: Mike Klubnika deserves every bit of support.
 
@@ -37,7 +37,7 @@ You need a Mac, Steam signed in to the account that owns the game, and Python 3 
 3. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Answer the questions; press Enter to skip the custom icon.
 4. **Play.** Open **Buckshot Roulette** from your home **Applications** folder, with Steam running.
 
-The first build downloads Godot 4.1.4 (about 210 MB) and GodotSteam 4.10 (12 MB) from their official releases, checks them against fixed SHA-256 hashes, and keeps them in `~/Library/Caches/buckshot-roulette-mac`. Later builds take about 10 seconds.
+The first build downloads Godot 4.4.1 (about 230 MB) and GodotSteam 4.10 (12 MB) from their official releases, checks them against fixed SHA-256 hashes, and keeps them in `~/Library/Caches/buckshot-roulette-mac`. Later builds take about 10 seconds.
 
 From Terminal instead: `python3 build.py`. Options: `--icon file.icns`, `--output path.app`, `--replace`, `--game path/to/Buckshot\ Roulette.exe`, `--i-own-the-game` (no questions).
 
@@ -53,8 +53,9 @@ The game's own files are copied unchanged. The builder adds:
 | --- | --- |
 | GodotSteam extension | The Windows exe has Steam built in; on Mac it comes from the official GodotSteam plug-in |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, signed in, and your account owns Buckshot Roulette |
-| `override.cfg` and your `.icns` (only with a custom icon) | Keeps your icon in the Dock while the game runs |
-| A small `launch` script inside the app | Loads Steam's overlay library, as Steam does for games it starts itself, so Shift+Tab works |
+| Godot 4.4 compatibility | `MP_ItemResource_User.gd` stops exporting four Node fields that are never set (Godot 4.4 forbids that in a Resource), and the script class list gets the two keys 4.4 expects |
+| `override.cfg` | Selects the native Metal renderer, and with a custom icon keeps it in the Dock |
+| A small `launch` script inside the app | Starts the game the way Steam starts its own games (same environment, Metal hook, overlay library), so Shift+Tab and Invite Friends work |
 
 No menus, scenes, text or gameplay are changed.
 
@@ -81,11 +82,10 @@ This is a courtesy check, not DRM: anyone can edit a local build. The app it mak
 
 ## Known limits
 
-- **Controllers don't work yet.** Godot 4.1 detects a DualShock 4 but receives no input on current macOS. Keyboard and mouse work.
 - In Steam's library the game still shows **Install**, not Play, because Valve ships no Mac version. Start the game from Applications; Steam still shows it as running and tracks playtime and achievements.
 - The game renders at its original 960×540 and scales to the window or screen, as on Windows.
 - Built and tested on Apple Silicon. Builds are signed locally, not notarized by Apple.
-- Not tested yet: a full online match between Mac and Windows players, and in-game Invite Friends.
+- Not tested yet: a full online match between Mac and Windows players, Xbox and Switch controllers.
 
 ## Unofficial project
 

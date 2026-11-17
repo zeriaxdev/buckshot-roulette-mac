@@ -3,7 +3,7 @@
 
 No part of the game is included or downloaded by this tool. The game data comes
 from the Windows depot that Steam downloads for your account. The open-source
-tools it needs (Godot 4.1.4, GodotSteam 4.10) are downloaded from their official
+tools it needs (Godot 4.4.1, GodotSteam 4.10) are downloaded from their official
 releases and checked against pinned SHA-256 hashes.
 """
 from __future__ import annotations
@@ -28,12 +28,12 @@ STEAM_ROOTS = [
     Path.home() / "Library/Application Support/Steam",
     Path.home() / "Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS",
 ]
-GODOT_URL = "https://github.com/godotengine/godot-builds/releases/download/4.1.4-stable/"
-GODOT = (GODOT_URL + "Godot_v4.1.4-stable_macos.universal.zip",
-         "6ef7dd271b7a7868c60e16357cd3085b12b892967daf84aa491c38108565d94d")
-TEMPLATES = GODOT_URL + "Godot_v4.1.4-stable_export_templates.tpz"
+GODOT_URL = "https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/"
+GODOT = (GODOT_URL + "Godot_v4.4.1-stable_macos.universal.zip",
+         "6c670596d21afb7917c739d0b85b10b4ac6a44051ffa2a672f90bc7da5062864")
+TEMPLATES = GODOT_URL + "Godot_v4.4.1-stable_export_templates.tpz"
 RUNTIME_MEMBER = "macos_template.app/Contents/MacOS/godot_macos_release.universal"
-RUNTIME_SHA = "997adf3a304deb911ea31f7af28058d48574d654da73f9f93e7bca3f951cf2e9"
+RUNTIME_SHA = "9e680c349ea22d52fa2a84666b1fb2de15e9b59cf5f295a91da78fe09654f8b2"
 GODOTSTEAM = ("https://codeberg.org/godotsteam/godotsteam/releases/download/v4.10-gde/godotsteam_gdextension_plugin41-43.zip",
               "c36ca3ece7b907658f36f90308c604eb4baf523bcffc336d764f68e5e27fddfa")
 FRAMEWORK = "libgodotsteam.macos.template_release.framework"
@@ -46,7 +46,9 @@ macos.release = "osx/libgodotsteam.macos.template_release.framework"
 macos.debug = "osx/libgodotsteam.macos.template_release.framework"
 '''
 LAUNCHER = '''#!/bin/sh
-# Steam injects its overlay (Shift+Tab) only into games it launches itself; do the same.
+# Start the game the way Steam starts its own games, so the in-game overlay (Shift+Tab,
+# Invite Friends) works: same environment, Metal hook on, overlay library loaded.
+export SteamAppId=2835570 SteamGameId=2835570 SteamOverlayGameId=2835570 SteamMetalHook=1
 overlay="$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/gameoverlayrenderer.dylib"
 [ -f "$overlay" ] && export DYLD_INSERT_LIBRARIES="$overlay"
 exec "$(dirname "$0")/Buckshot Roulette" "$@"
@@ -105,7 +107,7 @@ def fetch(url: str, digest: str, target: Path) -> Path:
 
 def fetch_runtime(target: Path) -> Path:
     if not (target.exists() and sha256(target) == RUNTIME_SHA):
-        print("  downloading the Godot 4.1.4 macOS runtime (about 100 MB, not the whole 820 MB templates archive)", flush=True)
+        print("  downloading the Godot 4.4.1 macOS runtime (about 115 MB, not the whole templates archive)", flush=True)
         part = target.with_suffix(".part")
         with zipfile.ZipFile(io.BufferedReader(HttpFile(TEMPLATES), 1 << 22)) as tpz:
             with zipfile.ZipFile(io.BytesIO(tpz.read("templates/macos.zip"))) as macos, part.open("wb") as out:
@@ -218,9 +220,9 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("Not enough free disk space: the build needs about 2.5 GB")
     log = CACHE / "build.log"
     log.write_text("")
-    print("1/4 Getting Godot 4.1.4 and GodotSteam 4.10 (cached after the first run)", flush=True)
-    godot = unpack(fetch(*GODOT, CACHE / "godot-4.1.4.zip"), CACHE / "godot-4.1.4") / "Godot.app/Contents/MacOS/Godot"
-    runtime = fetch_runtime(CACHE / "godot-4.1.4-runtime")
+    print("1/4 Getting Godot 4.4.1 and GodotSteam 4.10 (cached after the first run)", flush=True)
+    godot = unpack(fetch(*GODOT, CACHE / "godot-4.4.1.zip"), CACHE / "godot-4.4.1") / "Godot.app/Contents/MacOS/Godot"
+    runtime = fetch_runtime(CACHE / "godot-4.4.1-runtime")
     steam = unpack(fetch(*GODOTSTEAM, CACHE / "godotsteam-4.10.zip"), CACHE / "godotsteam-4.10")
     framework = steam / "addons/godotsteam/osx" / FRAMEWORK
     with tempfile.TemporaryDirectory(prefix="br-build-", dir=out.parent) as scratch:
@@ -230,9 +232,11 @@ def main(argv: list[str] | None = None) -> int:
         (extras / "addons/godotsteam").mkdir(parents=True)
         (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\n")
         (extras / "addons/godotsteam/godotsteam.gdextension").write_text(GDEXTENSION)
+        override = '[rendering]\nrendering_device/driver.macos="metal"\n'  # native Metal, not MoltenVK
         if icon:  # the game sets its own Dock icon at runtime; this makes it use the .icns instead
             shutil.copy2(icon, extras / "mac_icon.icns")
-            (extras / "override.cfg").write_text('[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n')
+            override += '[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n'
+        (extras / "override.cfg").write_text(override)
         app = work / f"{NAME}.app"
         for sub in ("MacOS", "Resources", "Frameworks"):
             (app / "Contents" / sub).mkdir(parents=True)
