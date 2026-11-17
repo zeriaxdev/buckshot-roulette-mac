@@ -212,6 +212,11 @@ func _process(delta: float) -> void:
 		_fit_camera(cam)
 
 
+func controller_ray_position(point: Vector2, visible: Vector2) -> Vector2:
+	# Controller slots are stored in the original 960x540 camera projection.
+	return (point - BASE / 2.0) * visible.x / BASE.x + visible / 2.0 if fill else point
+
+
 func _fit_camera(cam: Camera3D) -> void:
 	if not fill:
 		if cam.has_meta("mac_fov"):

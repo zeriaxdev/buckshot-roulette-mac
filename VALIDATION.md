@@ -37,3 +37,9 @@ A short test on one scene, not a benchmark.
 - Xbox and Switch controllers
 - Intel Macs
 - Steam libraries outside the default folder (use `--game`)
+
+## Fill Screen controller projection
+
+`tests/screen_fit_rays.gd` compares actual Camera3D ray directions before and after expansion. The old code fails at 960x600; the coordinate fix passes 12 comparisons across 960x540, 960x600 and 1200x600. It exercises item-slot-like positions and the centre.
+
+Run with the cached Godot 4.4.1 editor, an empty project directory, `--headless --path EMPTY --script tests/screen_fit_rays.gd -- ABSOLUTE_PATH_TO_tools/screen_fit.gd`. A fresh local build with the updated single-player and multiplayer raycast patches signs and verifies. Physical DualShock item pickup still needs a play check.

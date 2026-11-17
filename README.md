@@ -48,7 +48,7 @@ When Steam updates the game, run `download_depot 2835570 2835572` again, then ru
 
 ## What the builder changes
 
-The game's files are copied as they are. The builder adds:
+The builder preserves the shipped assets and applies these additions and compatibility patches:
 
 | Addition | Why |
 | --- | --- |
@@ -61,7 +61,7 @@ The game's files are copied as they are. The builder adds:
 
 | A **MAC** page in Options | First entry in Options (the other entries move down one row, lined up with the main menu). It has **FILL SCREEN 16:10 \*** (experimental, off by default), **FPS LIMIT** (unlimited, 60 or 120) and **SHOW FPS**, built from copies of the game's own menu items. Fill Screen fills a 16:10 screen instead of showing black bars: menus stay centred, the camera keeps its 16:9 width and shows a little more above and below. Saved in `mac_screen.json` next to the game's settings. |
 
-The MAC entry and its page are the only menu changes. Scenes, text and gameplay stay exactly as they are.
+The MAC entry and its page are the only menu changes. The camera and raycast scripts are patched for Fill Screen, including conversion of controller item-target coordinates. Game rules and shipped scene assets are preserved.
 
 ## Ownership
 
