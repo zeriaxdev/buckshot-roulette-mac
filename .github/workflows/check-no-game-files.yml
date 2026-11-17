@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Builder and test-runner checks
+        run: python3 -m unittest discover -s tests
       - name: Repository has no game files
         run: python3 scripts/check_no_game_files.py
       - name: Release ZIP would have no game files

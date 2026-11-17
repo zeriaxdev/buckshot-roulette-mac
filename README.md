@@ -48,18 +48,19 @@ When Steam updates the game, run `download_depot 2835570 2835572` again, then ru
 
 ## What the builder changes
 
-The game's files are copied as they are. The builder adds:
+The builder preserves the shipped assets and applies these additions and compatibility patches:
 
 | Addition | Why |
 | --- | --- |
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
+| Scene-transition fixes | Repeating light/display timers stop after leaving the scene tree. Scene changes are deferred until the current callbacks finish, including the death screen's automatic restart. |
 | A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
 | `override.cfg` | Picks the Metal renderer. |
 | A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
 
-Menus, scenes, text and gameplay stay exactly as they are.
+Menus, text and game rules are preserved. The script patches above change runtime compatibility and scene-transition handling.
 
 ## Ownership
 
