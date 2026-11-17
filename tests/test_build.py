@@ -18,7 +18,7 @@ class BuildChecks(unittest.TestCase):
 
     def test_metadata_has_no_placeholders(self):
         meta = build.app_metadata()
-        self.assertEqual(meta["CFBundleExecutable"], build.NAME)
+        self.assertEqual(meta["CFBundleExecutable"], "launch")
         self.assertTrue(all("$" not in str(v) for v in meta.values()))
 
 

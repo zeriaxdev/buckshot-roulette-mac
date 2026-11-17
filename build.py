@@ -32,6 +32,12 @@ macos.release = "osx/libgodotsteam.macos.template_release.framework"
 macos.debug = "osx/libgodotsteam.macos.template_release.framework"
 '''
 FRAMEWORK = "libgodotsteam.macos.template_release.framework"
+LAUNCHER = '''#!/bin/sh
+# Steam injects its overlay (Shift+Tab) only into games it launches itself; do the same.
+overlay="$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/gameoverlayrenderer.dylib"
+[ -f "$overlay" ] && export DYLD_INSERT_LIBRARIES="$overlay"
+exec "$(dirname "$0")/Buckshot Roulette" "$@"
+'''
 
 
 def find_depot_exe() -> Path | None:
@@ -59,7 +65,7 @@ def app_metadata() -> dict:
         "CFBundleIdentifier": "local.buckshotroulette.steam",
         "CFBundleName": NAME,
         "CFBundleDisplayName": NAME,
-        "CFBundleExecutable": NAME,
+        "CFBundleExecutable": "launch",
         "CFBundleIconFile": "icon.icns",
         "CFBundleShortVersionString": "1.0",
         "CFBundleVersion": "1.0",
@@ -173,6 +179,10 @@ def main(argv: list[str] | None = None) -> int:
         (extras / "addons/godotsteam").mkdir(parents=True)
         (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\n")
         (extras / "addons/godotsteam/godotsteam.gdextension").write_text(GDEXTENSION)
+        if a.icon:
+            # The game sets its own Dock icon at runtime; this setting makes it use the .icns instead.
+            shutil.copy2(a.icon, extras / "mac_icon.icns")
+            (extras / "override.cfg").write_text('[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n')
         app = work / f"{NAME}.app"
         for sub in ("MacOS", "Resources", "Frameworks"):
             (app / "Contents" / sub).mkdir(parents=True)
@@ -186,6 +196,8 @@ def main(argv: list[str] | None = None) -> int:
         print("2/3 Assembling the app", flush=True)
         shutil.copy2(template / "Contents/MacOS/godot_macos_release.universal", app / f"Contents/MacOS/{NAME}")
         (app / f"Contents/MacOS/{NAME}").chmod(0o755)  # zip extraction drops the executable bit
+        (app / "Contents/MacOS/launch").write_text(LAUNCHER)
+        (app / "Contents/MacOS/launch").chmod(0o755)
         shutil.copytree(framework, app / "Contents/Frameworks" / FRAMEWORK, symlinks=True)
         shutil.copy2(a.icon or template / "Contents/Resources/icon.icns", app / "Contents/Resources/icon.icns")
         (app / "Contents/PkgInfo").write_text("APPL????")

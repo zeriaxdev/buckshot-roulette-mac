@@ -16,12 +16,13 @@ Nothing is reconstructed or converted, so there are no lost models, textures or 
 
 ## What is changed in the game
 
-Only these three things. **No menus, scenes or UI are changed.**
+Only these things. **No menus, scenes or UI are changed.**
 
 | Change | Where |
 | --- | --- |
 | GodotSteam extension registered | `.godot/extension_list.cfg`, `addons/godotsteam/godotsteam.gdextension` added to the PCK |
 | Ownership check at startup | `scripts/Steam.gd`, one block after `InitializeSteam()` |
+| Dock icon (only with `--icon`) | `override.cfg` and `mac_icon.icns` added to the PCK |
 | Nothing else | |
 
 The ownership check quits the game with a native alert unless Steam is running, you are signed in and `Steam.isSubscribed()` says your account owns the app. If you want that message inside the game's own UI instead of a system alert, that is a scene change and needs to be added on purpose.
@@ -51,6 +52,8 @@ python3 build.py \
   --output "$HOME/Applications/Buckshot Roulette.app"
 ```
 
+With `--icon`, the app also gets `override.cfg` (sets `application/config/macos_native_icon`) so the Dock keeps your icon while the game runs. The app starts through a small `launch` script that loads Steam's overlay library, the same way Steam does for games it launches, so Shift+Tab works.
+
 Optional: `--game /path/to/"Buckshot Roulette.exe"` if the depot is not found, `--icon /path/to/your.icns` for a custom icon (none is included). Existing outputs are never overwritten. Needs about 3 GB free while building.
 
 Tests: `python3 -m unittest discover -s tests`
@@ -59,9 +62,9 @@ Tests: `python3 -m unittest discover -s tests`
 
 Verified: builds from the owned depot (game v2.2.0.6), signature verifies, boots, Steam initialises with the real app id, the ownership check passes for an owning account.
 
-Not verified: the ownership check refusing a non-owner, Steam overlay and invites, controller input, full multiplayer matches, cloud saves, Discord verified-game badge, the Steam library Play button (Steam's own entry still shows Install because Valve ships no macOS depot), window size and aspect ratio.
+Verified by the user: custom Dock icon, Steam overlay with Shift+Tab, hold Escape to exit, Steam shows the game as Running.
 
-Known bug: holding Escape to exit a run does not work with a real keyboard. Synthetic holds work, so the cause is not found yet.
+Not verified: the ownership check refusing a non-owner, invites, controller input, full multiplayer matches, cloud saves, Discord verified-game badge, the Steam library Play button (Steam's own entry still shows Install because Valve ships no macOS depot), window size and aspect ratio.
 
 ## Legal
 
