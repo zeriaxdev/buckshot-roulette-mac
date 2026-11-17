@@ -54,11 +54,13 @@ The game's files are copied as they are. The builder adds:
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
-| A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
-| `override.cfg` | Picks the Metal renderer. |
+| A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. |
+| A small Mac helper script | Keeps that icon in the Dock while the game runs (the game would swap in its raw PNG). |
 | A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
 
-Menus, scenes, text and gameplay stay exactly as they are.
+| Fill Screen option (experimental, off by default) | One extra checkbox, **FILL SCREEN (EXPERIMENTAL)**, at the top of Options → Audio/Video, made from copies of the game's own checkbox. When on, a 16:10 screen is filled instead of showing black bars: the 16:9 menus and text stay centred, the camera keeps its 16:9 width and shows more above and below, and full-screen fades and effects are stretched to cover. The choice is saved in `mac_screen.json` next to the game's settings. |
+
+That checkbox is the only menu change. Scenes, text and gameplay stay exactly as they are.
 
 ## Ownership
 
@@ -86,6 +88,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
+- Fill Screen is experimental. The checkbox works with the mouse; a controller can't reach it yet. Checked on the menu, options, multiplayer lobby, bathroom, catwalk and table; death, win and heaven not yet.
 - Not tested yet: a full online match between Mac and Windows players, and Xbox or Switch controllers.
 
 ## Unofficial project

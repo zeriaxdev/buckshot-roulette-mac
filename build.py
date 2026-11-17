@@ -20,7 +20,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VERSION = "1.0.1"
+VERSION = "1.1.0-beta.1"
 ROOT = Path(__file__).resolve().parent
 CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
 APP_ID, DEPOT_ID = "2835570", "2835572"
@@ -161,7 +161,10 @@ def app_metadata() -> dict:
         "LSMinimumSystemVersion": "10.12",
         "NSPrincipalClass": "NSApplication",
         "NSHighResolutionCapable": True,
-        "NSAppSleepDisabled": True,  # App Nap throttles a background game and stalls Steam lobbies
+        "NSAppSleepDisabled": True,
+        # notched MacBooks: fullscreen sits below the camera notch, so no menu bar strip over
+        # the game and mouse positions line up (the usable screen is then exactly 16:10)
+        "NSPrefersDisplaySafeAreaCompatibilityMode": True,  # App Nap throttles a background game and stalls Steam lobbies
     }
 
 
@@ -247,14 +250,10 @@ def main(argv: list[str] | None = None) -> int:
                                    check=True, capture_output=True)
             icon = work / "icon.icns"
             subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(icon)], check=True)
-        override = '[rendering]\nrendering_device/driver.macos="metal"\n'  # native Metal, not MoltenVK
-        # experimental 16:10 "fill the screen", off unless the player turns it on
+        # Mac helper (Dock icon, experimental 16:10 fill), started by the patched Steam.gd
         (extras / "mac").mkdir()
         shutil.copy2(ROOT / "tools/screen_fit.gd", extras / "mac/screen_fit.gd")
-        if icon:  # the game sets its own Dock icon at runtime; this makes it use the .icns instead
-            shutil.copy2(icon, extras / "mac_icon.icns")
-            override += '[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n'
-        (extras / "override.cfg").write_text(override)
+        shutil.copy2(icon, extras / "mac_icon.icns")
         app = work / f"{NAME}.app"
         for sub in ("MacOS", "Resources", "Frameworks"):
             (app / "Contents" / sub).mkdir(parents=True)
