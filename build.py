@@ -182,13 +182,36 @@ def ask(question: str) -> str:
         return ""
 
 
+def install_app(app: Path, out: Path, replace_existing: bool) -> None:
+    # Stage on the destination volume before moving the working app out of the way.
+    with tempfile.TemporaryDirectory(prefix=".br-install-", dir=out.parent) as scratch:
+        staged = Path(scratch) / out.name
+        shutil.move(str(app), staged)
+        backup = None
+        if out.exists():
+            if not replace_existing:
+                raise ValueError("An app appeared at the destination during the build; keeping it")
+            trash = Path.home() / ".Trash"
+            trash.mkdir(exist_ok=True)
+            backup = trash / f"{out.stem} {time.time_ns()}.app"
+            out.rename(backup)
+        try:
+            staged.rename(out)
+        except BaseException:
+            if backup:
+                backup.rename(out)
+            raise
+        if backup:
+            print(f"Moved the old app to the Trash: {backup.name}")
+
+
 def main(argv: list[str] | None = None) -> int:
     import plistlib
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--game", type=Path, help=f"{NAME}.exe from the Steam depot (found automatically)")
     p.add_argument("--icon", type=Path, help="your own .icns (default: a Mac-style icon made from the game's icon)")
     p.add_argument("--output", type=Path, default=Path.home() / "Applications" / f"{NAME}.app")
-    p.add_argument("--replace", action="store_true", help="move an existing app at --output to the Trash first")
+    p.add_argument("--replace", action="store_true", help="replace an existing app after the new build verifies; keep the old app in Trash")
     p.add_argument("--i-own-the-game", action="store_true", help="confirm you own the game on Steam (asked otherwise)")
     a = p.parse_args(argv)
     if sys.platform != "darwin":
@@ -211,12 +234,10 @@ def main(argv: list[str] | None = None) -> int:
     out = a.output.expanduser().resolve()
     if out.suffix != ".app":
         raise ValueError("--output must end in .app")
-    if out.exists():
+    replace_existing = out.exists()
+    if replace_existing:
         if not a.replace and ask(f"{out} exists. Move it to the Trash and replace it? [y/N] ").lower() not in ("y", "yes"):
             raise ValueError("Existing app kept. Choose another --output or add --replace")
-        trash = Path.home() / ".Trash" / f"{out.stem} {time.strftime('%Y-%m-%d %H.%M.%S')}.app"
-        shutil.move(str(out), trash)
-        print(f"Moved the old app to the Trash: {trash.name}")
     out.parent.mkdir(parents=True, exist_ok=True)
     CACHE.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(out.parent).free < 2_500_000_000:
@@ -228,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
     runtime = fetch_runtime(CACHE / "godot-4.4.1-runtime")
     steam = unpack(fetch(*GODOTSTEAM, CACHE / "godotsteam-4.10.zip"), CACHE / "godotsteam-4.10")
     framework = steam / "addons/godotsteam/osx" / FRAMEWORK
-    with tempfile.TemporaryDirectory(prefix="br-build-", dir=out.parent) as scratch:
+    with tempfile.TemporaryDirectory(prefix="br-build-", dir=CACHE) as scratch:
         work = Path(scratch)
         (work / "cwd").mkdir()  # tools run from an empty folder
         extras = work / "extras"
@@ -277,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
         print("4/4 Signing locally", flush=True)
         run(["codesign", "--force", "--deep", "--sign", "-", str(app)], log)
         run(["codesign", "--verify", "--deep", "--strict", str(app)], log)
-        shutil.move(str(app), out)
+        install_app(app, out, replace_existing)
     print(f"\nDone: {out}\nKeep Steam running when you play. This app contains the game: don't share it.")
     return 0
 
