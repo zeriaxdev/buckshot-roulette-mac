@@ -2,6 +2,9 @@
 
 Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac, built from your own Steam copy. It renders with Metal, and Steam achievements, the Shift+Tab overlay, Invite Friends, online lobbies and PlayStation controllers all work.
 
+> [!IMPORTANT]
+> **Steam version only.** You need to own Buckshot Roulette on Steam. This repo doesn't contain the game and doesn't download it. It turns the copy you already own into a Mac app. It's not a way to play without buying it, so please don't ask for builds or game files. Don't have it yet? [Get it on Steam](https://store.steampowered.com/app/2835570/).
+
 ## Contents
 
 - [Why this exists](#why-this-exists)
@@ -18,8 +21,6 @@ Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively o
 ## Why this exists
 
 Buckshot Roulette only comes out for Windows, but it's made in Godot, and Godot runs on macOS. So the builder takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 Mac runtime, with Steam support added. You get a real Mac app: Metal rendering, controllers through Apple's GameController framework, no Wine or CrossOver.
-
-None of the game is in this repository, and the builder doesn't download it either. You need to own it on Steam. Mike Klubnika made a great game, so please buy it.
 
 ## Install
 
