@@ -17,6 +17,12 @@ var _candidates: Array[Control] = []  # plain colour/image layers not yet matche
 var _recheck := 0.0
 
 
+func _test_scene() -> void:
+	# test only: MAC_SCREEN_SCENE=res://scenes/death.tscn opens that scene after start-up
+	await get_tree().create_timer(4.0).timeout
+	get_tree().change_scene_to_file(OS.get_environment("MAC_SCREEN_SCENE"))
+
+
 func _enter_tree() -> void:
 	name = "MacScreenFit"  # the patched MouseRaycast.gd finds this helper by name
 
@@ -40,6 +46,8 @@ func _ready() -> void:
 			fill = bool(parsed.get("fill_screen", false))
 	if "--fill-screen" in OS.get_cmdline_user_args() or "--fill-screen" in OS.get_cmdline_args():
 		fill = true
+	if OS.has_environment("MAC_SCREEN_SCENE"):
+		_test_scene()
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().root.size_changed.connect(_apply)
 	_apply()
@@ -77,8 +85,10 @@ func _apply() -> void:
 			DisplayServer.get_display_safe_area(), DisplayServer.window_get_safe_title_margins(),
 			_top, _shift, DisplayServer.screen_get_scale(root.current_screen)])
 		f.close()
-	_bar.size = Vector2(visible.x, _top)
-	_bar.visible = _top > 0.0
+	# with fill on, the game's own top pixel row shows a grey edge line from its post-process
+	# effects (in 16:9 it falls inside the black bars): keep that one row black
+	_bar.size = Vector2(visible.x, maxf(_top, 1.0))
+	_bar.visible = fill
 	root.canvas_transform = Transform2D(0.0, Vector2(0, _shift))
 	_walk(root)
 
@@ -236,12 +246,26 @@ func _add_mac_page(sub: Control) -> void:
 	page.add_child(note)
 	var back := _clone_button(av.get_node("button_exit options"), av.get_node("true button_return audio video"), page, "RETURN", 0.0)
 	back.is_pressed.connect(func(): menu.Show("sub options"))
-	# the MAC entry takes AUDIO/VIDEO's place; the game's entries move down one row
-	for n in sub.get_children():
-		if n is Control:
-			n.position.y += 25.0
-	var entry := _clone_button(sub.get_node("button_audio video"), sub.get_node("true button_audio video"), sub, "MAC", -25.0)
+	# the MAC entry goes first; then all five rows take the main menu's exact positions
+	# (START..EXIT), so both lists line up pixel for pixel
+	var entry := _clone_button(sub.get_node("button_audio video"), sub.get_node("true button_audio video"), sub, "MAC", 0.0)
 	entry.get_parent().name = "mac_entry"
+	var main := ui.get_node_or_null("main screen")
+	if main:
+		var rows := [[entry.ui, entry.get_parent()],
+			[sub.get_node("button_audio video"), sub.get_node("true button_audio video")],
+			[sub.get_node("button_language"), sub.get_node("true button_language")],
+			[sub.get_node("button_controller"), sub.get_node("true button_controller")],
+			[sub.get_node("button_return"), sub.get_node("true button_exit sub options")]]
+		var targets := ["button_start", "button_multiplayer", "button_options", "button_credits", "button_exit"]
+		for i in rows.size():
+			var target := main.get_node(targets[i]) as Label
+			var label: Label = rows[i][0]
+			var button: Control = rows[i][1]
+			var hit := button.position.y - label.position.y  # keep each click area on its word
+			label.position.y = target.position.y
+			label.size.y = target.size.y
+			button.position.y = target.position.y + hit
 	entry.is_pressed.connect(func():
 		menu.Show("mac")
 		page.visible = true)
