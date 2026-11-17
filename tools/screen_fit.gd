@@ -253,6 +253,8 @@ func _clone_button(label: Label, button: Button, parent: Node, text: String, dy:
 	parent.add_child(b)
 	var bc := b.get_child(0)
 	bc.ui = l
+	if bc.isDynamic:
+		l.modulate.a = bc.ui_opacity_inactive
 	return bc
 
 
@@ -276,6 +278,8 @@ func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get
 	branch.ui = check  # the copy still pointed at the greyscale checkmark
 	var bc := button.get_child(0)
 	bc.ui = bracket
+	if bc.isDynamic:
+		bracket.modulate.a = bc.ui_opacity_inactive  # the copy's _ready hid the original's bracket, not this one
 	branch.UpdateCheckmark(get_value.call())
 	bc.is_pressed.connect(func():
 		flip.call()
