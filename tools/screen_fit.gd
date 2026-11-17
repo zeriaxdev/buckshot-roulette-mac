@@ -17,7 +17,7 @@ var _fps_time := 0.0
 var _shift := 0.0
 var _top := 0.0  # notch row, in game pixels, kept black
 var _bar: ColorRect
-var _candidates: Array[Control] = []  # plain colour/image layers not yet matched as full-screen
+var _candidates := []  # plain colour/image layers not yet matched as full-screen
 var _recheck := 0.0
 
 
@@ -145,7 +145,6 @@ func _fit_overlay(node) -> void:  # untyped: a deferred call may arrive after th
 		if not covers:
 			return
 		node.set_meta("mac_overlay", [r.position, r.size, "backfill" if node is TextureRect else "stretch"])
-		_candidates.erase(node)
 	var saved = node.get_meta("mac_overlay")
 	var visible := get_tree().root.get_visible_rect().size
 	if saved[2] == "backfill":
@@ -196,10 +195,10 @@ func _process(delta: float) -> void:
 	_recheck += delta
 	if _recheck > 0.2:
 		_recheck = 0.0
-		for node in _candidates.duplicate():
-			if not is_instance_valid(node) or not node.is_inside_tree():
-				_candidates.erase(node)
-			elif node.is_visible_in_tree():
+		# drop freed layers by filtering: erasing a freed object from an array crashes Godot 4.4
+		_candidates = _candidates.filter(func(n): return is_instance_valid(n) and n.is_inside_tree() and not n.has_meta("mac_overlay"))
+		for node in _candidates:
+			if node.is_visible_in_tree():
 				_fit_overlay(node)
 	# The game's camera angles are vertical (Keep Height). For a taller screen, keep the
 	# horizontal view of the 16:9 game and show more above and below instead. Every camera
@@ -257,14 +256,30 @@ func _add_mac_page(sub: Control) -> void:
 	if main == null:
 		return
 	var row_y := func(name: String) -> float: return (main.get_node(name) as Label).position.y
+	var src_text := av.get_node("text_greyscale death") as Label
 	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", row_y.call("button_start") - 83.0,
 		func(): return fill, func(): fill = not fill)
-	var fps := _clone_button(main.get_node("button_multiplayer"), sub.get_node("true button_audio video"), page, _fps_text(),
-		row_y.call("button_multiplayer") - (main.get_node("button_multiplayer") as Label).position.y)
-	fps.get_parent().position.y = row_y.call("button_multiplayer") + 5.0
-	fps.is_pressed.connect(func():
+	var fps_label := src_text.duplicate() as Label  # same font as the checkbox rows
+	fps_label.text = _fps_text()
+	fps_label.position.y = row_y.call("button_multiplayer")
+	page.add_child(fps_label)
+	var fps_button := av.get_node("true button_greyscale death").duplicate() as Button
+	page.add_child(fps_button)
+	var fps_bc := fps_button.get_child(0)
+	fps_bc.ui = fps_label
+	var fit_hit := func():  # click area over the text, which is right-aligned to the checkbox column
+		var font := fps_label.get_theme_font("font")
+		var w: float = font.get_string_size(fps_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fps_label.get_theme_font_size("font_size")).x * fps_label.scale.x
+		fps_button.scale = Vector2(w / 8.0, 3.0)
+		fps_button.position = Vector2(fps_label.position.x + fps_label.size.x * fps_label.scale.x - w, fps_label.position.y + 6.0)
+	fit_hit.call()
+	if fps_bc.isDynamic:
+		fps_label.modulate.a = 1.0
+		fps_bc.isDynamic = false  # text stays fully visible, like the game's labels
+	fps_bc.is_pressed.connect(func():
 		fps_limit = {0: 60, 60: 120}.get(fps_limit, 0)
-		fps.ui.text = _fps_text()
+		fps_label.text = _fps_text()
+		fit_hit.call()
 		_save())
 	var bracket2 := _add_row(av, page, "fps", "SHOW FPS", row_y.call("button_options") - 83.0,
 		func(): return show_fps, func(): show_fps = not show_fps)
@@ -273,10 +288,13 @@ func _add_mac_page(sub: Control) -> void:
 			# the game shows option brackets only while a controller is in use
 			menu.controller.brackets.append(br)
 			br.visible = menu.cursor.controller_active
-	var note := main.get_node("button_credits").duplicate() as Label
+	var note := src_text.duplicate() as Label  # small, like it was before
 	note.text = "* EXPERIMENTAL"
+	note.position.y = row_y.call("button_credits")
 	note.modulate.a = 0.6
 	page.add_child(note)
+	# the counter uses the game's font, at its own small size
+	_fps_label.add_theme_font_override("font", src_text.get_theme_font("font"))
 	var back := _clone_button(main.get_node("button_exit"), av.get_node("true button_return audio video"), page, "RETURN", 0.0)
 	back.get_parent().position.y = row_y.call("button_exit") + 6.0
 	back.is_pressed.connect(func(): menu.Show("sub options"))
