@@ -1,28 +1,42 @@
 #!/usr/bin/env python3
-"""Build an unofficial local macOS app from your own Steam copy of Buckshot Roulette.
+"""Build an unofficial native macOS app from your own Steam copy of Buckshot Roulette.
 
-Nothing of the game is included or downloaded. The game data comes from the
-Windows depot that Steam put on this Mac for your account.
+No part of the game is included or downloaded by this tool. The game data comes
+from the Windows depot that Steam downloads for your account. The open-source
+tools it needs (Godot 4.1.4, GodotSteam 4.10) are downloaded from their official
+releases and checked against pinned SHA-256 hashes.
 """
 from __future__ import annotations
 
 import argparse
-import os
-import plistlib
+import hashlib
+import io
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.request
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-APP_ID = "2835570"
+CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
+APP_ID, DEPOT_ID = "2835570", "2835572"
 NAME = "Buckshot Roulette"
 STEAM_ROOTS = [
     Path.home() / "Library/Application Support/Steam",
     Path.home() / "Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS",
 ]
+GODOT_URL = "https://github.com/godotengine/godot-builds/releases/download/4.1.4-stable/"
+GODOT = (GODOT_URL + "Godot_v4.1.4-stable_macos.universal.zip",
+         "6ef7dd271b7a7868c60e16357cd3085b12b892967daf84aa491c38108565d94d")
+TEMPLATES = GODOT_URL + "Godot_v4.1.4-stable_export_templates.tpz"
+RUNTIME_MEMBER = "macos_template.app/Contents/MacOS/godot_macos_release.universal"
+RUNTIME_SHA = "997adf3a304deb911ea31f7af28058d48574d654da73f9f93e7bca3f951cf2e9"
+GODOTSTEAM = ("https://codeberg.org/godotsteam/godotsteam/releases/download/v4.10-gde/godotsteam_gdextension_plugin41-43.zip",
+              "c36ca3ece7b907658f36f90308c604eb4baf523bcffc336d764f68e5e27fddfa")
+FRAMEWORK = "libgodotsteam.macos.template_release.framework"
 GDEXTENSION = '''[configuration]
 entry_symbol = "godotsteam_init"
 compatibility_minimum = "4.1"
@@ -31,7 +45,6 @@ compatibility_minimum = "4.1"
 macos.release = "osx/libgodotsteam.macos.template_release.framework"
 macos.debug = "osx/libgodotsteam.macos.template_release.framework"
 '''
-FRAMEWORK = "libgodotsteam.macos.template_release.framework"
 LAUNCHER = '''#!/bin/sh
 # Steam injects its overlay (Shift+Tab) only into games it launches itself; do the same.
 overlay="$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/gameoverlayrenderer.dylib"
@@ -40,9 +53,82 @@ exec "$(dirname "$0")/Buckshot Roulette" "$@"
 '''
 
 
+class HttpFile(io.RawIOBase):
+    """Seekable read-only view of a URL using Range requests, so zipfile can
+    pull one member out of the 820 MB templates archive without downloading it all."""
+
+    def __init__(self, url: str):
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD")) as r:
+            self.url, self.size = r.url, int(r.headers["Content-Length"])
+        self.pos = 0
+
+    def seekable(self): return True
+    def readable(self): return True
+    def tell(self): return self.pos
+
+    def seek(self, offset, whence=0):
+        self.pos = {0: offset, 1: self.pos + offset, 2: self.size + offset}[whence]
+        return self.pos
+
+    def readinto(self, buffer):
+        if self.pos >= self.size or not len(buffer):
+            return 0
+        end = min(self.pos + len(buffer), self.size) - 1
+        req = urllib.request.Request(self.url, headers={"Range": f"bytes={self.pos}-{end}"})
+        with urllib.request.urlopen(req) as r:
+            data = r.read()
+        buffer[:len(data)] = data
+        self.pos += len(data)
+        return len(data)
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def fetch(url: str, digest: str, target: Path) -> Path:
+    if not (target.exists() and sha256(target) == digest):
+        print(f"  downloading {url.rsplit('/', 1)[-1]}", flush=True)
+        part = target.with_suffix(".part")
+        with urllib.request.urlopen(url) as r, part.open("wb") as out:
+            shutil.copyfileobj(r, out, 1 << 20)
+        if sha256(part) != digest:
+            part.unlink()
+            raise RuntimeError(f"Checksum mismatch for {url}; nothing was used")
+        part.replace(target)
+    return target
+
+
+def fetch_runtime(target: Path) -> Path:
+    if not (target.exists() and sha256(target) == RUNTIME_SHA):
+        print("  downloading the Godot 4.1.4 macOS runtime (about 100 MB, not the whole 820 MB templates archive)", flush=True)
+        part = target.with_suffix(".part")
+        with zipfile.ZipFile(io.BufferedReader(HttpFile(TEMPLATES), 1 << 22)) as tpz:
+            with zipfile.ZipFile(io.BytesIO(tpz.read("templates/macos.zip"))) as macos, part.open("wb") as out:
+                out.write(macos.read(RUNTIME_MEMBER))
+        if sha256(part) != RUNTIME_SHA:
+            raise RuntimeError(f"Checksum mismatch for the Godot runtime ({sha256(part)}); nothing was used")
+        part.replace(target)
+    target.chmod(0o755)
+    return target
+
+
+def unpack(archive: Path, target: Path) -> Path:
+    if not target.exists():
+        tmp = target.with_name(target.name + ".tmp")
+        shutil.rmtree(tmp, ignore_errors=True)
+        subprocess.run(["ditto", "-x", "-k", str(archive), str(tmp)], check=True)  # keeps symlinks and permissions
+        tmp.replace(target)
+    return target
+
+
 def find_depot_exe() -> Path | None:
     for root in STEAM_ROOTS:
-        hits = sorted((root / "steamapps/content" / f"app_{APP_ID}").glob(f"depot_*/*/{NAME}.exe"))
+        hits = sorted((root / "steamapps/content" / f"app_{APP_ID}").glob(f"depot_{DEPOT_ID}/*/{NAME}.exe"))
         if hits:
             return hits[0]
     return None
@@ -57,7 +143,6 @@ def check_exe(path: Path) -> None:
 
 
 def app_metadata() -> dict:
-    # Built from scratch: the template's Info.plist holds unfilled $placeholders.
     return {
         "CFBundleDevelopmentRegion": "English",
         "CFBundleInfoDictionaryVersion": "6.0",
@@ -73,55 +158,8 @@ def app_metadata() -> dict:
         "LSMinimumSystemVersion": "10.12",
         "NSPrincipalClass": "NSApplication",
         "NSHighResolutionCapable": True,
-        # App Nap throttles a background game, which stalls Steam lobbies.
-        "NSAppSleepDisabled": True,
+        "NSAppSleepDisabled": True,  # App Nap throttles a background game and stalls Steam lobbies
     }
-
-
-def tool(value: Path, name: str) -> Path:
-    path = value.expanduser().resolve()
-    if path.suffix == ".app":
-        path = path / "Contents/MacOS" / name
-    if not (path.is_file() and os.access(path, os.X_OK)):
-        raise ValueError(f"Executable not found: {path}")
-    return path
-
-
-def template_app(archive: Path, work: Path) -> Path:
-    """Accept the official templates .tpz or its macos.zip; return the unpacked template app."""
-    archive = archive.expanduser().resolve()
-    with zipfile.ZipFile(archive) as z:
-        if "templates/macos.zip" in z.namelist():
-            inner = work / "macos.zip"
-            with z.open("templates/macos.zip") as s, inner.open("wb") as o:
-                shutil.copyfileobj(s, o)
-            archive = inner
-    with zipfile.ZipFile(archive) as z:
-        names = z.namelist()
-        if "macos_template.app/Contents/MacOS/godot_macos_release.universal" not in names:
-            raise ValueError("Templates must be the official Godot 4.1.x export templates (macos.zip)")
-        # fixed names only; never extract arbitrary paths
-        for n in ("MacOS/godot_macos_release.universal", "Resources/icon.icns"):
-            z.extract(f"macos_template.app/Contents/{n}", work)
-    return work / "macos_template.app"
-
-
-def godotsteam_framework(source: Path, work: Path) -> Path:
-    source = source.expanduser().resolve()
-    if source.suffix == ".zip":
-        with zipfile.ZipFile(source) as z:
-            members = [n for n in z.namelist() if f"{FRAMEWORK}/" in n]
-            if not members:
-                raise ValueError(f"{FRAMEWORK} not found in the GodotSteam zip")
-            if any(Path(n).is_absolute() or ".." in Path(n).parts for n in members):
-                raise ValueError("Unsafe path in zip")
-            z.extractall(work / "gs", members)
-        source = next((work / "gs").rglob(FRAMEWORK))
-    elif source.name != FRAMEWORK:
-        source = source / "osx" / FRAMEWORK if (source / "osx").exists() else source / FRAMEWORK
-    if not (source / "libgodotsteam.macos.template_release").is_file():
-        raise ValueError(f"Not a GodotSteam macOS release framework: {source}")
-    return source
 
 
 def run(args: list[str], log: Path, cwd: Path | None = None) -> None:
@@ -132,82 +170,94 @@ def run(args: list[str], log: Path, cwd: Path | None = None) -> None:
         raise RuntimeError(f"Step failed ({code}); see {log}")
 
 
+def ask(question: str) -> str:
+    return input(question).strip() if sys.stdin.isatty() else ""
+
+
 def main(argv: list[str] | None = None) -> int:
+    import plistlib
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--game", type=Path, help=f"{NAME}.exe from your Steam depot (found automatically if omitted)")
-    p.add_argument("--godot", required=True, type=Path, help="Official Godot 4.1.x .app or executable")
-    p.add_argument("--templates", required=True, type=Path, help="Godot 4.1.x export templates .tpz or macos.zip")
-    p.add_argument("--godotsteam", required=True, type=Path,
-                   help="GodotSteam GDExtension for Godot 4.1 (folder with osx/, the .framework, or the release zip)")
-    p.add_argument("--icon", type=Path, help="optional local .icns; none is included in this repository")
-    p.add_argument("--output", type=Path, default=ROOT / "build" / f"{NAME}.app")
+    p.add_argument("--game", type=Path, help=f"{NAME}.exe from the Steam depot (found automatically)")
+    p.add_argument("--icon", type=Path, help="optional .icns for the Dock")
+    p.add_argument("--output", type=Path, default=Path.home() / "Applications" / f"{NAME}.app")
+    p.add_argument("--replace", action="store_true", help="move an existing app at --output to the Trash first")
     p.add_argument("--i-own-the-game", action="store_true", help="confirm you own the game on Steam (asked otherwise)")
     a = p.parse_args(argv)
     if sys.platform != "darwin":
         raise ValueError("This builder runs on macOS")
-    print(f"This builds a Mac app from your own Steam copy of {NAME}. It includes and downloads none of the game.")
-    print(f"Buy it at https://store.steampowered.com/app/{APP_ID}/")
-    if not a.i_own_the_game:
-        if not sys.stdin.isatty():
-            raise ValueError("Confirm that you own the game: add --i-own-the-game")
-        if input(f"Do you own {NAME} on Steam? [y/N] ").strip().lower() not in ("y", "yes"):
-            raise ValueError("This builder is only for people who own the game")
+    print(f"Builds a Mac app from your own Steam copy of {NAME}. It contains and downloads none of the game.\n"
+          f"Buy it: https://store.steampowered.com/app/{APP_ID}/\n")
+    if not a.i_own_the_game and ask(f"Do you own {NAME} on Steam? [y/N] ").lower() not in ("y", "yes"):
+        raise ValueError("This builder is only for people who own the game (add --i-own-the-game when not interactive)")
     game = a.game or find_depot_exe()
     if not game:
-        raise ValueError(f"Could not find the depot. In Steam, download the Windows depot for app {APP_ID} and pass --game")
+        subprocess.run(["open", "steam://open/console"])
+        raise ValueError(f"The Windows game files aren't downloaded yet. Steam's console just opened: type\n"
+                         f"    download_depot {APP_ID} {DEPOT_ID}\n"
+                         f"press Enter, wait for 'Depot download complete', then run this again.")
     game = game.expanduser().resolve()
     check_exe(game)
+    icon = a.icon
+    if icon is None and not a.i_own_the_game:
+        answer = ask("Custom Dock icon? Drag an .icns file here, or press Enter to keep the game's icon: ")
+        icon = Path(answer.strip("'\" ")).expanduser() if answer else None
+    if icon and (not icon.is_file() or icon.suffix.lower() != ".icns"):
+        raise ValueError("The icon must be an existing .icns file")
     out = a.output.expanduser().resolve()
-    if out.exists() or out.suffix != ".app":
-        raise ValueError("Choose a new .app output path; existing files are never overwritten")
-    godot = tool(a.godot, "Godot")
-    version = subprocess.check_output([str(godot), "--version"], text=True).strip()
-    if not version.startswith("4.1."):
-        raise ValueError(f"Use Godot 4.1.x for this game, received {version}")
-    if a.icon and (not a.icon.is_file() or a.icon.suffix.lower() != ".icns"):
-        raise ValueError("--icon must be an existing local .icns file")
+    if out.suffix != ".app":
+        raise ValueError("--output must end in .app")
+    if out.exists():
+        if not a.replace and ask(f"{out} exists. Move it to the Trash and replace it? [y/N] ").lower() not in ("y", "yes"):
+            raise ValueError("Existing app kept. Choose another --output or add --replace")
+        trash = Path.home() / ".Trash" / f"{out.stem} {time.strftime('%Y-%m-%d %H.%M.%S')}.app"
+        shutil.move(str(out), trash)
+        print(f"Moved the old app to the Trash: {trash.name}")
     out.parent.mkdir(parents=True, exist_ok=True)
-    if shutil.disk_usage(out.parent).free < 3_000_000_000:
-        raise ValueError("Not enough free disk space: the build needs about 3 GB")
-    log = out.parent / f"{out.stem} - build.log"
-    with tempfile.TemporaryDirectory(prefix="br-local-", dir=out.parent) as scratch:
+    CACHE.mkdir(parents=True, exist_ok=True)
+    if shutil.disk_usage(out.parent).free < 2_500_000_000:
+        raise ValueError("Not enough free disk space: the build needs about 2.5 GB")
+    log = CACHE / "build.log"
+    log.write_text("")
+    print("1/4 Getting Godot 4.1.4 and GodotSteam 4.10 (cached after the first run)", flush=True)
+    godot = unpack(fetch(*GODOT, CACHE / "godot-4.1.4.zip"), CACHE / "godot-4.1.4") / "Godot.app/Contents/MacOS/Godot"
+    runtime = fetch_runtime(CACHE / "godot-4.1.4-runtime")
+    steam = unpack(fetch(*GODOTSTEAM, CACHE / "godotsteam-4.10.zip"), CACHE / "godotsteam-4.10")
+    framework = steam / "addons/godotsteam/osx" / FRAMEWORK
+    with tempfile.TemporaryDirectory(prefix="br-build-", dir=out.parent) as scratch:
         work = Path(scratch)
-        template = template_app(a.templates, work)
-        framework = godotsteam_framework(a.godotsteam, work)
         extras = work / "extras"
         (extras / ".godot").mkdir(parents=True)
         (extras / "addons/godotsteam").mkdir(parents=True)
         (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\n")
         (extras / "addons/godotsteam/godotsteam.gdextension").write_text(GDEXTENSION)
-        if a.icon:
-            # The game sets its own Dock icon at runtime; this setting makes it use the .icns instead.
-            shutil.copy2(a.icon, extras / "mac_icon.icns")
+        if icon:  # the game sets its own Dock icon at runtime; this makes it use the .icns instead
+            shutil.copy2(icon, extras / "mac_icon.icns")
             (extras / "override.cfg").write_text('[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n')
         app = work / f"{NAME}.app"
         for sub in ("MacOS", "Resources", "Frameworks"):
             (app / "Contents" / sub).mkdir(parents=True)
-        print("1/3 Repacking your game data with the Steam extension and ownership check", flush=True)
-        empty = work / "cwd"
-        empty.mkdir()
+        print("2/4 Copying your game data and adding Steam support", flush=True)
+        (work / "cwd").mkdir()
         run([str(godot), "--headless", "--script", str(ROOT / "tools/repack.gd"), "--",
-             str(app / f"Contents/Resources/{NAME}.pck"), str(game), str(extras)], log, cwd=empty)
+             str(app / f"Contents/Resources/{NAME}.pck"), str(game), str(extras)], log, cwd=work / "cwd")
         if not (app / f"Contents/Resources/{NAME}.pck").is_file():
-            raise RuntimeError(f"Repacking failed; see {log}")
-        print("2/3 Assembling the app", flush=True)
-        shutil.copy2(template / "Contents/MacOS/godot_macos_release.universal", app / f"Contents/MacOS/{NAME}")
-        (app / f"Contents/MacOS/{NAME}").chmod(0o755)  # zip extraction drops the executable bit
+            raise RuntimeError(f"Copying the game data failed; see {log}")
+        print("3/4 Assembling the app", flush=True)
+        shutil.copy2(runtime, app / f"Contents/MacOS/{NAME}")
         (app / "Contents/MacOS/launch").write_text(LAUNCHER)
-        (app / "Contents/MacOS/launch").chmod(0o755)
+        for exe in ("launch", NAME):
+            (app / "Contents/MacOS" / exe).chmod(0o755)
         shutil.copytree(framework, app / "Contents/Frameworks" / FRAMEWORK, symlinks=True)
-        shutil.copy2(a.icon or template / "Contents/Resources/icon.icns", app / "Contents/Resources/icon.icns")
+        if icon:
+            shutil.copy2(icon, app / "Contents/Resources/icon.icns")
         (app / "Contents/PkgInfo").write_text("APPL????")
         (app / "Contents/Info.plist").write_bytes(plistlib.dumps(app_metadata()))
         shutil.copy2(ROOT / "NOTICE.md", app / "Contents/Resources/Local build notice.txt")
-        print("3/3 Signing and verifying locally", flush=True)
+        print("4/4 Signing locally", flush=True)
         run(["codesign", "--force", "--deep", "--sign", "-", str(app)], log)
         run(["codesign", "--verify", "--deep", "--strict", str(app)], log)
         shutil.move(str(app), out)
-    print(f"Built: {out}\nLog: {log}\nThis app contains the game. Do not share it.")
+    print(f"\nDone: {out}\nKeep Steam running when you play. This app contains the game: don't share it.")
     return 0
 
 
@@ -215,5 +265,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (ValueError, RuntimeError, OSError, zipfile.BadZipFile) as error:
-        print(f"Build stopped: {error}", file=sys.stderr)
+        print(f"\nStopped: {error}", file=sys.stderr)
         raise SystemExit(1)

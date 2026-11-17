@@ -5,7 +5,7 @@ extends SceneTree
 
 const STEAM_GD := "scripts/Steam.gd"
 const ANCHOR := "\tInitializeSteam()\n"
-const CHECK := "\tInitializeSteam()\n\tif not (Steam.loggedOn() and Steam.isSubscribed()):\n\t\tOS.alert(\"Buckshot Roulette must be owned on Steam, and Steam must be running and signed in.\", \"Buckshot Roulette\")\n\t\tget_tree().quit()\n\t\treturn\n"
+const CHECK := "\tInitializeSteam()\n\tif not (Steam.loggedOn() and Steam.isSubscribedApp(appid)):\n\t\tOS.alert(\"Buckshot Roulette must be owned on Steam, and Steam must be running and signed in.\", \"Buckshot Roulette\")\n\t\tget_tree().quit()\n\t\treturn\n"
 
 var packer := PCKPacker.new()
 var count := 0
