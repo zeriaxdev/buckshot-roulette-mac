@@ -58,7 +58,7 @@ The game's files are copied as they are. The builder adds:
 | A small Mac helper script | Keeps that icon in the Dock while the game runs (the game would swap in its raw PNG). |
 | A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
 
-| Fill Screen option (experimental, off by default) | One extra checkbox, **FILL SCREEN (EXPERIMENTAL)**, at the top of Options → Audio/Video, made from copies of the game's own checkbox. When on, a 16:10 screen is filled instead of showing black bars: the 16:9 menus and text stay centred, the camera keeps its 16:9 width and shows more above and below, and full-screen fades and effects are stretched to cover. The choice is saved in `mac_screen.json` next to the game's settings. |
+| Fill Screen option (experimental, off by default) | One extra checkbox, **FILL SCREEN 16:10 (EXPERIMENTAL)**, at the top of Options → Audio/Video, made from copies of the game's own checkbox. When on, a 16:10 screen is filled instead of showing black bars: the 16:9 menus and text stay centred, the camera keeps its 16:9 width and shows more above and below, and full-screen fades and effects are stretched to cover. The choice is saved in `mac_screen.json` next to the game's settings. |
 
 That checkbox is the only menu change. Scenes, text and gameplay stay exactly as they are.
 

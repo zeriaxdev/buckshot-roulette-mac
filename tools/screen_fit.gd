@@ -76,6 +76,8 @@ func _apply() -> void:
 
 func _walk(node: Node) -> void:
 	_fit(node)
+	if node.name == "options_audio video":
+		_add_toggle.call_deferred(node)  # the first menu loads before this helper starts
 	for child in node.get_children():
 		_walk(child)
 
@@ -142,7 +144,7 @@ func _process(_delta: float) -> void:
 
 
 func _add_toggle(page: Node) -> void:
-	# Adds "FILL SCREEN (EXPERIMENTAL)" to the game's Audio/Video options, one row above
+	# Adds "FILL SCREEN 16:10 (EXPERIMENTAL)" to the game's Audio/Video options, one row above
 	# COLOR BLIND MODE, built from copies of the GREYSCALE DEATH row so it looks and
 	# behaves like the game's own checkboxes. Mouse only for now.
 	if not is_instance_valid(page) or page.has_node("mac_text_fill"):
@@ -156,7 +158,7 @@ func _add_toggle(page: Node) -> void:
 	var dy := -50.0  # greyscale row is at y 83, colour blind at 58: this row goes at 33
 	var text := src_text.duplicate() as Label
 	text.name = "mac_text_fill"
-	text.text = "FILL SCREEN (EXPERIMENTAL)"
+	text.text = "FILL SCREEN 16:10 (EXPERIMENTAL)"
 	text.position.y += dy
 	var check := src_check.duplicate() as TextureRect
 	check.name = "mac_check_fill"
@@ -174,6 +176,10 @@ func _add_toggle(page: Node) -> void:
 	var bc := button.get_child(0)
 	bc.ui = bracket
 	branch.UpdateCheckmark(fill)
+	if OS.has_environment("MAC_SCREEN_DEBUG"):
+		var f := FileAccess.open("user://mac_screen_toggle.txt", FileAccess.WRITE)
+		f.store_line("toggle added to %s visible=%s" % [page.get_path(), text.is_visible_in_tree()])
+		f.close()
 	bc.is_pressed.connect(func():
 		set_fill(not fill)
 		branch.UpdateCheckmark(fill))
