@@ -33,13 +33,13 @@ You need Steam signed in to the account that owns the game, and Python 3. If Pyt
 
    Wait for `Depot download complete` (about 800 MB). Steam only lets accounts that own the game do this.
 
-2. **Download this builder.** Get the ZIP from [Releases](https://github.com/zeriaxdev/buckshot-roulette-mac/releases) and extract it.
-3. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Answer the questions. Press Enter to skip the custom icon.
+2. **Download this builder.** Get the ZIP from the [latest release](https://github.com/zeriaxdev/buckshot-roulette-mac/releases/latest) and extract it.
+3. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Answer **y** when it asks whether you own the game.
 4. **Play.** Open **Buckshot Roulette** from the **Applications** folder in your home folder. Keep Steam running.
 
 The first build downloads Godot 4.4.1 (about 230 MB) and GodotSteam 4.10 (12 MB) from their official releases and checks each against a fixed SHA-256 hash. They stay cached in `~/Library/Caches/buckshot-roulette-mac`, so later builds take about 10 seconds.
 
-Prefer Terminal? Run `python3 build.py`. Options: `--icon file.icns`, `--output path.app`, `--replace`, `--game path/to/Buckshot\ Roulette.exe`, and `--i-own-the-game` to skip the questions.
+Prefer Terminal? Run `python3 build.py`. Options: `--icon file.icns` (your own icon instead of the generated one), `--output path.app`, `--replace`, `--game path/to/Buckshot\ Roulette.exe`, and `--i-own-the-game` to skip the questions.
 
 ## Updating
 
@@ -54,7 +54,8 @@ The game's files are copied as they are. The builder adds:
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
-| `override.cfg` | Picks the Metal renderer, and keeps your custom icon in the Dock if you chose one. |
+| A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
+| `override.cfg` | Picks the Metal renderer. |
 | A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
 
 Menus, scenes, text and gameplay stay exactly as they are.

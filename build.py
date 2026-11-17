@@ -20,7 +20,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VERSION = "1.0.0-beta.1"
+VERSION = "1.0.0"
 ROOT = Path(__file__).resolve().parent
 CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
 APP_ID, DEPOT_ID = "2835570", "2835572"
@@ -174,14 +174,19 @@ def run(args: list[str], log: Path, cwd: Path | None = None) -> None:
 
 
 def ask(question: str) -> str:
-    return input(question).strip() if sys.stdin.isatty() else ""
+    if not sys.stdin.isatty():
+        return ""
+    try:
+        return input(question).strip()
+    except EOFError:
+        return ""
 
 
 def main(argv: list[str] | None = None) -> int:
     import plistlib
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--game", type=Path, help=f"{NAME}.exe from the Steam depot (found automatically)")
-    p.add_argument("--icon", type=Path, help="optional .icns for the Dock")
+    p.add_argument("--icon", type=Path, help="your own .icns (default: a Mac-style icon made from the game's icon)")
     p.add_argument("--output", type=Path, default=Path.home() / "Applications" / f"{NAME}.app")
     p.add_argument("--replace", action="store_true", help="move an existing app at --output to the Trash first")
     p.add_argument("--i-own-the-game", action="store_true", help="confirm you own the game on Steam (asked otherwise)")
@@ -201,9 +206,6 @@ def main(argv: list[str] | None = None) -> int:
     game = game.expanduser().resolve()
     check_exe(game)
     icon = a.icon
-    if icon is None and not a.i_own_the_game:
-        answer = ask("Custom Dock icon? Drag an .icns file here, or press Enter to keep the game's icon: ")
-        icon = Path(answer.strip("'\" ")).expanduser() if answer else None
     if icon and (not icon.is_file() or icon.suffix.lower() != ".icns"):
         raise ValueError("The icon must be an existing .icns file")
     out = a.output.expanduser().resolve()
@@ -228,11 +230,23 @@ def main(argv: list[str] | None = None) -> int:
     framework = steam / "addons/godotsteam/osx" / FRAMEWORK
     with tempfile.TemporaryDirectory(prefix="br-build-", dir=out.parent) as scratch:
         work = Path(scratch)
+        (work / "cwd").mkdir()  # tools run from an empty folder
         extras = work / "extras"
         (extras / ".godot").mkdir(parents=True)
         (extras / "addons/godotsteam").mkdir(parents=True)
         (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\n")
         (extras / "addons/godotsteam/godotsteam.gdextension").write_text(GDEXTENSION)
+        if not icon:  # Mac-style icon made from the game's own icon in your copy
+            png, iconset = work / "icon.png", work / "icon.iconset"
+            run([str(godot), "--headless", "--script", str(ROOT / "tools/icon.gd"), "--", str(game), str(png)], log, cwd=work / "cwd")
+            iconset.mkdir()
+            for size in (16, 32, 128, 256, 512):
+                for scale in (1, 2):
+                    name = f"icon_{size}x{size}{'@2x' if scale == 2 else ''}.png"
+                    subprocess.run(["sips", "-z", str(size * scale), str(size * scale), str(png), "--out", str(iconset / name)],
+                                   check=True, capture_output=True)
+            icon = work / "icon.icns"
+            subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(icon)], check=True)
         override = '[rendering]\nrendering_device/driver.macos="metal"\n'  # native Metal, not MoltenVK
         if icon:  # the game sets its own Dock icon at runtime; this makes it use the .icns instead
             shutil.copy2(icon, extras / "mac_icon.icns")
@@ -242,7 +256,6 @@ def main(argv: list[str] | None = None) -> int:
         for sub in ("MacOS", "Resources", "Frameworks"):
             (app / "Contents" / sub).mkdir(parents=True)
         print("2/4 Copying your game data and adding Steam support", flush=True)
-        (work / "cwd").mkdir()
         run([str(godot), "--headless", "--script", str(ROOT / "tools/repack.gd"), "--",
              str(app / f"Contents/Resources/{NAME}.pck"), str(game), str(extras)], log, cwd=work / "cwd")
         if not (app / f"Contents/Resources/{NAME}.pck").is_file():
