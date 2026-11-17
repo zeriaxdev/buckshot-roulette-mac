@@ -248,6 +248,9 @@ def main(argv: list[str] | None = None) -> int:
             icon = work / "icon.icns"
             subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(icon)], check=True)
         override = '[rendering]\nrendering_device/driver.macos="metal"\n'  # native Metal, not MoltenVK
+        # experimental 16:10 "fill the screen", off unless the player turns it on
+        (extras / "mac").mkdir()
+        shutil.copy2(ROOT / "tools/screen_fit.gd", extras / "mac/screen_fit.gd")
         if icon:  # the game sets its own Dock icon at runtime; this makes it use the .icns instead
             shutil.copy2(icon, extras / "mac_icon.icns")
             override += '[application]\nconfig/macos_native_icon="res://mac_icon.icns"\n'
