@@ -228,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     runtime = fetch_runtime(CACHE / "godot-4.4.1-runtime")
     steam = unpack(fetch(*GODOTSTEAM, CACHE / "godotsteam-4.10.zip"), CACHE / "godotsteam-4.10")
     framework = steam / "addons/godotsteam/osx" / FRAMEWORK
-    with tempfile.TemporaryDirectory(prefix="br-build-", dir=out.parent) as scratch:
+    with tempfile.TemporaryDirectory(prefix="br-build-", dir=CACHE) as scratch:  # not in Applications: launchers index it
         work = Path(scratch)
         (work / "cwd").mkdir()  # tools run from an empty folder
         extras = work / "extras"

@@ -72,7 +72,7 @@ func _initialize():
 	for f in [item, ".godot/global_script_class_cache.cfg"]: skip[f] = true
 	# Fill Screen: the mouse ray must use the same camera angle the picture uses, and the
 	# camera transitions must start from the game's own angle, not the converted one.
-	var ray_fix := "\tvar mac = get_tree().root.get_node_or_null(\"MacScreenFit\")\n\tif mac: mac._fit_camera(self)\n"
+	var ray_fix := "\tvar mac = get_node_or_null(\"/root/MacScreenFit\") if is_inside_tree() else null\n\tif mac: mac._fit_camera(self)\n"
 	var patches := [
 		["scripts/MouseRaycast.gd", "\tvar start = project_ray_origin(mouse)\n", ray_fix + "\tvar start = project_ray_origin(mouse)\n", 1],
 		["multiplayer/scripts/user scripts/MP_MouseRaycast.gd", "\tvar start = project_ray_origin(mouse)\n", ray_fix + "\tvar start = project_ray_origin(mouse)\n", 1],

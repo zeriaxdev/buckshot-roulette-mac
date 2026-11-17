@@ -118,7 +118,7 @@ func _fit(node: Node) -> void:
 		_fit_overlay.call_deferred(node)  # after the game has laid it out
 
 
-func _fit_overlay(node: Control) -> void:
+func _fit_overlay(node) -> void:  # untyped: a deferred call may arrive after the node was freed
 	# Plain full-screen colour or shader layers (fades, darkening, the posterize post-process,
 	# VHS grain) only cover the 16:9 band: stretch them over the whole screen. Full-screen
 	# images (loading screen, death screen) keep their shape and get black behind them.
@@ -126,8 +126,8 @@ func _fit_overlay(node: Control) -> void:
 		return
 	if not node.has_meta("mac_overlay"):
 		# not cached when it doesn't match: intro animations can move a layer into place later
-		var r := node.get_global_rect()
-		var covers := r.position.x <= 1.0 and r.position.y <= 1.0 and r.end.x >= BASE.x - 1.0 and r.end.y >= BASE.y - 1.0
+		var r: Rect2 = node.get_global_rect()
+		var covers: bool = r.position.x <= 1.0 and r.position.y <= 1.0 and r.end.x >= BASE.x - 1.0 and r.end.y >= BASE.y - 1.0
 		if not covers:
 			return
 		node.set_meta("mac_overlay", [r.position, r.size, "backfill" if node is TextureRect else "stretch"])
@@ -150,7 +150,7 @@ func _fit_overlay(node: Control) -> void:
 			band.size = Vector2(maxf(visible.x, BASE.x), maxf(0.0, bands[i][1] - bands[i][0])) / node.get_global_transform().get_scale()
 		return
 	var extra := visible.y - BASE.y
-	var scale := node.get_global_transform().get_scale()  # some layers are scaled; size is unscaled
+	var scale: Vector2 = node.get_global_transform().get_scale()  # some layers are scaled; size is unscaled
 	if fill:
 		node.global_position = Vector2(saved[0].x, saved[0].y - _shift)
 		node.size = Vector2(saved[1].x, saved[1].y + extra) / scale
@@ -233,7 +233,8 @@ func _add_mac_page(sub: Control) -> void:
 	ui.add_child(page)
 	ui.move_child(page, sub.get_index() + 1)
 	menu.screens.append(page)  # the game hides it along with its other pages
-	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", 58.0 - 83.0,
+	# layout: setting rows from y 200, the footnote under them, RETURN right below
+	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", 200.0 - 83.0,
 		func(): return fill, func(): fill = not fill)
 	if bracket:
 		# the game shows option brackets only while a controller is in use
@@ -241,10 +242,10 @@ func _add_mac_page(sub: Control) -> void:
 		bracket.visible = menu.cursor.controller_active
 	var note := av.get_node("text_greyscale death").duplicate() as Label
 	note.text = "* EXPERIMENTAL"
-	note.position.y += 400.0 - 83.0
+	note.position.y += 235.0 - 83.0
 	note.modulate.a = 0.6
 	page.add_child(note)
-	var back := _clone_button(av.get_node("button_exit options"), av.get_node("true button_return audio video"), page, "RETURN", 0.0)
+	var back := _clone_button(av.get_node("button_exit options"), av.get_node("true button_return audio video"), page, "RETURN", 290.0 - 453.0)
 	back.is_pressed.connect(func(): menu.Show("sub options"))
 	# the MAC entry goes first; then all five rows take the main menu's exact positions
 	# (START..EXIT), so both lists line up pixel for pixel
