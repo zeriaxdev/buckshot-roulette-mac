@@ -20,6 +20,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+VERSION = "1.0.0-beta.1"
 ROOT = Path(__file__).resolve().parent
 CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
 APP_ID, DEPOT_ID = "2835570", "2835572"
@@ -187,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     if sys.platform != "darwin":
         raise ValueError("This builder runs on macOS")
-    print(f"Builds a Mac app from your own Steam copy of {NAME}. It contains and downloads none of the game.\n"
+    print(f"buckshot-roulette-mac {VERSION}\nBuilds a Mac app from your own Steam copy of {NAME}. It contains and downloads none of the game.\n"
           f"Buy it: https://store.steampowered.com/app/{APP_ID}/\n")
     if not a.i_own_the_game and ask(f"Do you own {NAME} on Steam? [y/N] ").lower() not in ("y", "yes"):
         raise ValueError("This builder is only for people who own the game (add --i-own-the-game when not interactive)")
