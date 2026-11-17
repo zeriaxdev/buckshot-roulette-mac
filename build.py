@@ -162,9 +162,6 @@ def app_metadata() -> dict:
         "NSPrincipalClass": "NSApplication",
         "NSHighResolutionCapable": True,
         "NSAppSleepDisabled": True,
-        # notched MacBooks: fullscreen sits below the camera notch, so no menu bar strip over
-        # the game and mouse positions line up (the usable screen is then exactly 16:10)
-        "NSPrefersDisplaySafeAreaCompatibilityMode": True,  # App Nap throttles a background game and stalls Steam lobbies
     }
 
 
