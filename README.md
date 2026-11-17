@@ -64,7 +64,9 @@ Verified: builds from the owned depot (game v2.2.0.6), signature verifies, boots
 
 Verified by the user: custom Dock icon, Steam overlay with Shift+Tab, hold Escape to exit, Steam shows the game as Running.
 
-Not verified: the ownership check refusing a non-owner, invites, controller input, full multiplayer matches, cloud saves, Discord verified-game badge, the Steam library Play button (Steam's own entry still shows Install because Valve ships no macOS depot), window size and aspect ratio.
+Not working: controller input. Godot 4.1.4 sees a DualShock 4 as connected but receives no button or stick events, with Steam Input disabled and with Steam closed.
+
+Not verified: the ownership check refusing a non-owner, invites, full multiplayer matches, cloud saves, Discord verified-game badge, the Steam library Play button (Steam's own entry still shows Install because Valve ships no macOS depot), window size and aspect ratio.
 
 ## Legal
 
