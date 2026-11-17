@@ -43,3 +43,9 @@ A short test on one scene, not a benchmark.
 `tests/screen_fit_rays.gd` compares actual Camera3D ray directions before and after expansion. The old code fails at 960x600; the coordinate fix passes 12 comparisons across 960x540, 960x600 and 1200x600. It exercises item-slot-like positions and the centre.
 
 Run with the cached Godot 4.4.1 editor, an empty project directory, `--headless --path EMPTY --script tests/screen_fit_rays.gd -- ABSOLUTE_PATH_TO_tools/screen_fit.gd`. A fresh local build with the updated single-player and multiplayer raycast patches signs and verifies. Physical DualShock item pickup still needs a play check.
+
+## Table-panel rendering regression
+
+A separate test copy reproduces the rectangular dark seam at the player-facing table panel. It appears on Godot 4.4.1 with Metal and Vulkan, with Fill Screen on or off, and remains when scene shadows are disabled. The same table view is clean under Godot 4.1.4/Vulkan. This narrows the defect to an engine-upgrade compatibility regression; no visual workaround has been applied. The screenshots and exploratory fixtures remain private temporary files.
+
+A separate MAC-page navigation fixture could not reliably initialize the real menu without an engine `Parent node is busy` error. It is not counted as a passed integration test. The existing controller-navigation limitation remains open.
