@@ -10,6 +10,10 @@ const SETTINGS := "user://mac_screen.json"
 const BASE := Vector2(960, 540)
 
 var fill := false
+var fps_limit := 0  # 0 = unlimited (the game's default)
+var show_fps := false
+var _fps_label: Label
+var _fps_time := 0.0
 var _shift := 0.0
 var _top := 0.0  # notch row, in game pixels, kept black
 var _bar: ColorRect
@@ -39,11 +43,18 @@ func _ready() -> void:
 	_bar.color = Color.BLACK
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(_bar)
+	_fps_label = Label.new()  # small counter in the top-right corner
+	_fps_label.add_theme_font_size_override("font_size", 12)
+	_fps_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+	_fps_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_fps_label)
 	add_child(layer)
 	if FileAccess.file_exists(SETTINGS):
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS))
 		if parsed is Dictionary:
 			fill = bool(parsed.get("fill_screen", false))
+			fps_limit = int(parsed.get("fps_limit", 0))
+			show_fps = bool(parsed.get("show_fps", false))
 	if "--fill-screen" in OS.get_cmdline_user_args() or "--fill-screen" in OS.get_cmdline_args():
 		fill = true
 	if OS.has_environment("MAC_SCREEN_SCENE"):
@@ -56,7 +67,7 @@ func _ready() -> void:
 func _save() -> void:
 	var out := FileAccess.open(SETTINGS, FileAccess.WRITE)
 	if out:
-		out.store_string(JSON.stringify({"fill_screen": fill}))
+		out.store_string(JSON.stringify({"fill_screen": fill, "fps_limit": fps_limit, "show_fps": show_fps}))
 		out.close()
 	_apply()
 
@@ -90,6 +101,9 @@ func _apply() -> void:
 	_bar.size = Vector2(visible.x, maxf(_top, 1.0))
 	_bar.visible = fill
 	root.canvas_transform = Transform2D(0.0, Vector2(0, _shift))
+	Engine.max_fps = fps_limit
+	_fps_label.visible = show_fps
+	_fps_label.position = Vector2(visible.x - 60, maxf(_top, 1.0) + 4)
 	_walk(root)
 
 
@@ -161,6 +175,11 @@ func _fit_overlay(node) -> void:  # untyped: a deferred call may arrive after th
 
 var _dump := 0.0
 func _process(delta: float) -> void:
+	if show_fps:
+		_fps_time += delta
+		if _fps_time > 0.5:
+			_fps_time = 0.0
+			_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
 	if OS.has_environment("MAC_SCREEN_DEBUG"):
 		_dump += delta
 		if _dump > 1.0:
@@ -233,25 +252,38 @@ func _add_mac_page(sub: Control) -> void:
 	ui.add_child(page)
 	ui.move_child(page, sub.get_index() + 1)
 	menu.screens.append(page)  # the game hides it along with its other pages
-	# layout: setting rows from y 200, the footnote under them, RETURN right below
-	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", 200.0 - 83.0,
+	# layout on the main menu's rows (START..EXIT), like every other list here
+	var main := ui.get_node_or_null("main screen")
+	if main == null:
+		return
+	var row_y := func(name: String) -> float: return (main.get_node(name) as Label).position.y
+	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", row_y.call("button_start") - 83.0,
 		func(): return fill, func(): fill = not fill)
-	if bracket:
-		# the game shows option brackets only while a controller is in use
-		menu.controller.brackets.append(bracket)
-		bracket.visible = menu.cursor.controller_active
-	var note := av.get_node("text_greyscale death").duplicate() as Label
+	var fps := _clone_button(main.get_node("button_multiplayer"), sub.get_node("true button_audio video"), page, _fps_text(),
+		row_y.call("button_multiplayer") - (main.get_node("button_multiplayer") as Label).position.y)
+	fps.get_parent().position.y = row_y.call("button_multiplayer") + 5.0
+	fps.is_pressed.connect(func():
+		fps_limit = {0: 60, 60: 120}.get(fps_limit, 0)
+		fps.ui.text = _fps_text()
+		_save())
+	var bracket2 := _add_row(av, page, "fps", "SHOW FPS", row_y.call("button_options") - 83.0,
+		func(): return show_fps, func(): show_fps = not show_fps)
+	for br in [bracket, bracket2]:
+		if br:
+			# the game shows option brackets only while a controller is in use
+			menu.controller.brackets.append(br)
+			br.visible = menu.cursor.controller_active
+	var note := main.get_node("button_credits").duplicate() as Label
 	note.text = "* EXPERIMENTAL"
-	note.position.y += 235.0 - 83.0
 	note.modulate.a = 0.6
 	page.add_child(note)
-	var back := _clone_button(av.get_node("button_exit options"), av.get_node("true button_return audio video"), page, "RETURN", 290.0 - 453.0)
+	var back := _clone_button(main.get_node("button_exit"), av.get_node("true button_return audio video"), page, "RETURN", 0.0)
+	back.get_parent().position.y = row_y.call("button_exit") + 6.0
 	back.is_pressed.connect(func(): menu.Show("sub options"))
 	# the MAC entry goes first; then all five rows take the main menu's exact positions
 	# (START..EXIT), so both lists line up pixel for pixel
 	var entry := _clone_button(sub.get_node("button_audio video"), sub.get_node("true button_audio video"), sub, "MAC", 0.0)
 	entry.get_parent().name = "mac_entry"
-	var main := ui.get_node_or_null("main screen")
 	if main:
 		var rows := [[entry.ui, entry.get_parent()],
 			[sub.get_node("button_audio video"), sub.get_node("true button_audio video")],
@@ -270,6 +302,10 @@ func _add_mac_page(sub: Control) -> void:
 	entry.is_pressed.connect(func():
 		menu.Show("mac")
 		page.visible = true)
+
+
+func _fps_text() -> String:
+	return "FPS LIMIT: " + ("UNLIMITED" if fps_limit == 0 else str(fps_limit))
 
 
 func _clone_button(label: Label, button: Button, parent: Node, text: String, dy: float) -> Node:
