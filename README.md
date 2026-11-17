@@ -33,7 +33,7 @@ You need Steam signed in to the account that owns the game, and Python 3. If Pyt
 
    Wait for `Depot download complete` (about 800 MB). Steam only lets accounts that own the game do this.
 
-2. **Download this builder.** Get the ZIP from the [latest release](https://github.com/zeriaxdev/buckshot-roulette-mac/releases/latest) and extract it.
+2. **Download this builder.** Get the ZIP from [Releases](https://github.com/zeriaxdev/buckshot-roulette-mac/releases) and extract it.
 3. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Answer the questions. Press Enter to skip the custom icon.
 4. **Play.** Open **Buckshot Roulette** from the **Applications** folder in your home folder. Keep Steam running.
 
