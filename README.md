@@ -84,7 +84,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 
 ## Known limits
 
-To check multiplayer, double-click **Test Multiplayer.command**. Follow the [five-step checklist](MULTIPLAYER_TESTING.md) with a second player on another computer. Results stay private; skipped checks are not passes. The script never closes the game.
+To try the multiplayer table alone, double-click **Test Multiplayer.command**: your seat is MIKE and three scripted seats act automatically. It opens a separate local session with temporary saves and no Steam networking or achievements. See [solo testing and the real Steam checklist](MULTIPLAYER_TESTING.md) for coverage and commands. It never closes your normal game.
 
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.

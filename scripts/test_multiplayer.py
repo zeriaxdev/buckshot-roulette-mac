@@ -7,6 +7,10 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+import sys
+
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 ROOT = Path(__file__).resolve().parent.parent
 CHECKS = (
@@ -35,8 +39,16 @@ def launch(app, log):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, default=Path('/Applications/Buckshot Roulette.app'))
+    parser.add_argument('--local', action='store_true', help='play locally with three scripted seats; no second account needed')
+    parser.add_argument('--smoke', action='store_true', help='run a bounded automatic local gameplay check')
     args = parser.parse_args()
     app = args.app.expanduser().resolve()
+    if args.local or args.smoke:
+        from scripts.test_local_multiplayer import run_local
+        try:
+            return run_local(app, smoke=args.smoke)
+        except (OSError, ValueError) as error:
+            parser.exit(1, f'Local test could not start: {error}\n')
     if not (app / 'Contents/MacOS/launch').is_file():
         parser.error('Install the Mac port first, or specify its app with --app')
     started = time.time()
