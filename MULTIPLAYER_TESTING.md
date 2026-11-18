@@ -1,6 +1,6 @@
 # Multiplayer check
 
-From this repository, run:
+Double-click **Test Multiplayer.command** in this folder. Alternatively, run:
 
 ```sh
 python3 scripts/test_multiplayer.py
