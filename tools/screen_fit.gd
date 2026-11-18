@@ -1,4 +1,4 @@
-# Experimental "fill the screen" for 16:10 Macs. Off by default.
+# Mac helper: repair legacy table geometry and provide experimental 16:10 screen fill.
 # The game is laid out for 960x540 (16:9) and adds black bars on a 16:10 screen.
 # When on: the view grows to fill the screen (960x600 on 16:10), cameras keep their
 # width so you see a little more above and below, and every 2D element is moved down
@@ -56,7 +56,9 @@ func _on_node_added(node: Node) -> void:
 
 
 func _fit(node: Node) -> void:
-	if node is CanvasLayer:
+	if node is MeshInstance3D:
+		_repair_table_mesh(node)
+	elif node is CanvasLayer:
 		if not node.has_meta("mac_offset"):
 			node.set_meta("mac_offset", node.offset)
 		node.offset = node.get_meta("mac_offset") + Vector2(0, _shift)
@@ -67,6 +69,41 @@ func _fit(node: Node) -> void:
 		var base: Vector2 = node.get_meta("mac_offsets")
 		node.offset_top = base.x - _shift
 		node.offset_bottom = base.y - _shift
+
+
+func _repair_table_mesh(node: MeshInstance3D) -> void:
+	var parent := node.get_parent()
+	if parent == null or not node.mesh is ArrayMesh or node.mesh.has_meta("mac_table_mesh"):
+		return
+	var base := parent.name == "tabletop parent" and node.name in ["main tabletop", "main tabletop2"]
+	var detail := parent.name == "main tabletop" and (str(node.name).begins_with("Plane_03") or node.name in ["health counter", "compartment_shells"])
+	var compartment := parent.name == "compartments parent" and str(node.name).begins_with("compartment")
+	if not (base or detail or compartment):
+		return
+	var source: ArrayMesh = node.mesh
+	# shortcut: only static table parts; extend for animated meshes after checking a newer game build.
+	if node.skin != null or source.get_blend_shape_count() != 0:
+		push_warning("Mac table fix skipped: animated mesh " + str(node.name))
+		return
+	# Re-upload the legacy arrays: automatic conversion leaves seams and dark wedges in 4.4+.
+	var rebuilt := ArrayMesh.new()
+	rebuilt.resource_name = source.resource_name
+	rebuilt.custom_aabb = source.custom_aabb
+	rebuilt.shadow_mesh = source.shadow_mesh
+	rebuilt.lightmap_size_hint = source.lightmap_size_hint
+	for i in range(source.get_surface_count()):
+		rebuilt.add_surface_from_arrays(source.surface_get_primitive_type(i), source.surface_get_arrays(i))
+		rebuilt.surface_set_material(i, source.surface_get_material(i))
+		rebuilt.surface_set_name(i, source.surface_get_name(i))
+	# Godot 4.4 exposes LOD data only through serialized surfaces; retain the original indices.
+	var original_surfaces: Array = source.get("_surfaces")
+	var rebuilt_surfaces: Array = rebuilt.get("_surfaces")
+	for i in range(original_surfaces.size()):
+		if original_surfaces[i].has("lods"):
+			rebuilt_surfaces[i]["lods"] = original_surfaces[i]["lods"]
+	rebuilt.set("_surfaces", rebuilt_surfaces)
+	rebuilt.set_meta("mac_table_mesh", true)
+	node.mesh = rebuilt
 
 
 func _is_top_control(node: Control) -> bool:

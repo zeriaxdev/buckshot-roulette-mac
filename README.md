@@ -54,11 +54,12 @@ The game's files are copied as they are. The builder adds:
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
+| Table geometry compatibility | The Mac helper rebuilds static table parts in memory to remove a dark panel seam and false gaps around the table edges on Godot 4.4. Their vertices, UVs and materials are preserved. |
 | A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
 | `override.cfg` | Picks the Metal renderer. |
 | A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
 
-Menus, scenes, text and gameplay stay exactly as they are.
+Menus, text and gameplay stay as they are. Scene files are not rewritten; the table repair runs when the scene loads.
 
 ## Ownership
 
