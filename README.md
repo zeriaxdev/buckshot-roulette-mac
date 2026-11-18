@@ -44,7 +44,7 @@ Prefer Terminal? Run `python3 build.py`. Options: `--icon file.icns` (your own i
 
 ## Updating
 
-When Steam updates the game, run `download_depot 2835570 2835572` again, then run the installer and answer **y** to replace the app. The old app goes to the Trash. Your saves stay where they are.
+When Steam updates the game, run `download_depot 2835570 2835572` again, then run the installer and answer **y** to replace the app. The working app stays installed until the replacement finishes building and its signature verifies. The old app then goes to the Trash; if the final swap fails, it is restored. Your saves stay where they are.
 
 ## What the builder changes
 
