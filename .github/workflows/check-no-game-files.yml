@@ -9,6 +9,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Builder and native-artifact checks
         run: python3 -m unittest discover -s tests
+      - name: Loading images cover the screen after notch resizes
+        run: |
+          "$RUNNER_TEMP/godot/Godot_v4.4.1-stable_linux.x86_64" --headless --path "$RUNNER_TEMP/br-geometry" --script "$GITHUB_WORKSPACE/tests/screen_fit_overlays.gd" -- "$GITHUB_WORKSPACE/tools/screen_fit.gd"
       - name: Repository has no game files
         run: python3 scripts/check_no_game_files.py
       - name: Release ZIP would have no game files

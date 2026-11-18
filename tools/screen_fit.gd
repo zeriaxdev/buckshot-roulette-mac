@@ -206,7 +206,8 @@ func _fit(node: Node) -> void:
 		if not node.has_meta("mac_offset"):
 			node.set_meta("mac_offset", node.offset)
 		node.offset = node.get_meta("mac_offset") + Vector2(0, _shift)
-	elif (node is ColorRect or node is Panel or node is TextureRect) and not node.get_children().any(func(c): return c is Control):
+	elif (node is ColorRect or node is Panel or node is TextureRect) and (node.has_meta("mac_overlay") or not node.get_children().any(func(c): return c is Control)):
+		# Cached images acquire filler children; they must still resize on later notch toggles.
 		if not node in _candidates:
 			_candidates.append(node)
 		_fit_overlay.call_deferred(node)  # after the game has laid it out
@@ -351,7 +352,7 @@ func _add_mac_page(sub: Control) -> void:
 		func(): return fill, func(): fill = not fill)
 	var notch_bracket := _add_row(av, page, "notch", "INCLUDE NOTCH AREA *", top + 38.0 - src_text.position.y,
 		func(): return include_notch, func(): include_notch = not include_notch)
-	page.get_node("notch_button").tooltip_text = "Draw beside the notch in fullscreen when Fill Screen is on."
+	page.get_node("notch_button").tooltip_text = "Uses borderless fullscreen to draw beside the notch. Requires Fill Screen."
 	var fps_label := src_text.duplicate(COPY_FLAGS) as Label
 	fps_label.name = "fps_limit_label"
 	fps_label.text = "FPS LIMIT:"
