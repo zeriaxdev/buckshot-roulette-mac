@@ -97,6 +97,7 @@ int main(int argc, char **argv) {
                 @"args": @{@"pid": @(game), @"activity": @{@"timestamps": @{@"start": @(started)}}}});
             NSDictionary *accepted = ok ? reply(fd, @"playing") : nil;
             if (![accepted[@"cmd"] isEqual:@"SET_ACTIVITY"] || [accepted[@"evt"] isEqual:@"ERROR"]) { close(fd); return 0; }
+            fprintf(stdout, "Discord presence active\n"); fflush(stdout);
             while (alive(game)) {
                 pollfd event{fd, POLLIN, 0};
                 int count = poll(&event, 1, 250);

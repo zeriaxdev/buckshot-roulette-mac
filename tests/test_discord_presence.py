@@ -79,7 +79,8 @@ class DiscordProtocolChecks(unittest.TestCase):
                     parent.wait(timeout=5)
                     output, errors = helper.communicate(timeout=5)
                     self.assertEqual(helper.returncode, 0)
-                    self.assertEqual((output, errors), (b'', b''))
+                    self.assertEqual(output, b'Discord presence active\n' if mode == 'normal' else b'')
+                    self.assertEqual(errors, b'')
                 finally:
                     for process in [helper, parent]:
                         if process.poll() is None: process.terminate()
