@@ -3,14 +3,30 @@
 #include <stdlib.h>
 
 static NSMutableArray *observers;
+static __weak NSWindow *shadow_window;
+static BOOL original_shadow;
+
+static void set_notch_shadow(NSWindow *window) {
+    if (shadow_window == window) return;
+    if (shadow_window) [shadow_window setHasShadow:original_shadow];
+    shadow_window = window;
+    if (window) {
+        original_shadow = [window hasShadow];
+        [window setHasShadow:NO]; // Borderless windows still receive the macOS shadow/rim.
+    }
+}
 
 static void update_presentation() {
     if (![NSApp isActive] || getenv("BUCKSHOT_WINDOW_TRANSITION")) return;
     NSWindow *window = [NSApp keyWindow];
-    if (!window || ([window styleMask] & NSWindowStyleMaskFullScreen)) return;
+    if (!window || ([window styleMask] & NSWindowStyleMaskFullScreen)) {
+        set_notch_shadow(nil);
+        return;
+    }
     // Only the borderless window covering a whole screen is our notch-inclusive mode.
     bool covers_screen = !([window styleMask] & NSWindowStyleMaskTitled)
         && NSEqualRects([window frame], [[window screen] frame]);
+    set_notch_shadow(covers_screen ? window : nil);
     NSApplicationPresentationOptions wanted = covers_screen
         ? (NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar)
         : NSApplicationPresentationDefault;
@@ -28,7 +44,7 @@ static void initialize(void *, GDExtensionInitializationLevel level) {
             usingBlock:^(NSNotification *) { update_presentation(); }]];
     }
     [observers addObject:[center addObserverForName:NSApplicationDidResignActiveNotification object:nil queue:nil
-        usingBlock:^(NSNotification *) { [NSApp setPresentationOptions:NSApplicationPresentationDefault]; }]];
+        usingBlock:^(NSNotification *) { set_notch_shadow(nil); [NSApp setPresentationOptions:NSApplicationPresentationDefault]; }]];
     for (NSNotificationName name in @[NSWindowWillEnterFullScreenNotification, NSWindowWillExitFullScreenNotification]) {
         [observers addObject:[center addObserverForName:name object:nil queue:nil
             usingBlock:^(NSNotification *) { setenv("BUCKSHOT_WINDOW_TRANSITION", "1", 1); }]];
@@ -44,6 +60,7 @@ static void deinitialize(void *, GDExtensionInitializationLevel level) {
     for (id observer in observers) [[NSNotificationCenter defaultCenter] removeObserver:observer];
     observers = nil;
     unsetenv("BUCKSHOT_WINDOW_TRANSITION");
+    set_notch_shadow(nil);
     [NSApp setPresentationOptions:NSApplicationPresentationDefault];
 }
 
