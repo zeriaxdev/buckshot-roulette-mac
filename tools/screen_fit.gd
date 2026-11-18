@@ -273,29 +273,34 @@ func _add_mac_page(sub: Control) -> void:
 	page.get_node("notch_button").tooltip_text = "Draw beside the notch in fullscreen when Fill Screen is on."
 	var fps_label := src_text.duplicate(COPY_FLAGS) as Label
 	fps_label.name = "fps_limit_label"
-	fps_label.text = _fps_text()
+	fps_label.text = "FPS LIMIT:"
 	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	fps_label.pivot_offset = Vector2.ZERO
 	fps_label.position = Vector2(335.0, top + 76.0)
 	page.add_child(fps_label)
+	var fps_value := src_text.duplicate(COPY_FLAGS) as Label
+	fps_value.name = "fps_limit_value"
+	fps_value.text = _fps_text()
+	fps_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fps_value.pivot_offset = Vector2.ZERO
+	fps_value.size = Vector2(200.0, src_text.size.y)
+	var src_check := av.get_node("checkmark_greyscale") as TextureRect
+	var right := src_check.position.x + src_check.size.x * src_check.scale.x
+	fps_value.position = Vector2(right - fps_value.size.x * fps_value.scale.x, fps_label.position.y)
+	page.add_child(fps_value)
 	var fps_button := av.get_node("true button_greyscale death").duplicate(COPY_FLAGS) as Button
 	fps_button.name = "fps_limit_button"
 	fps_button.pivot_offset = Vector2.ZERO
 	var fps_bc := fps_button.get_child(0)
-	fps_bc.ui = fps_label
+	fps_bc.ui = fps_value
 	fps_bc.ui_opacity_inactive = 1.0
 	fps_bc.ui_opacity_active = 0.78
 	page.add_child(fps_button)
-	var fit_hit := func():  # keep the click area over the full current text
-		var font := fps_label.get_theme_font("font")
-		var w: float = font.get_string_size(fps_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fps_label.get_theme_font_size("font_size")).x * fps_label.scale.x
-		fps_button.scale = Vector2(w / 8.0, 3.0)
-		fps_button.position = Vector2(fps_label.position.x, fps_label.position.y + 6.0)
-	fit_hit.call()
+	fps_button.scale = Vector2((right - fps_label.position.x) / 8.0, 3.0)
+	fps_button.position = Vector2(fps_label.position.x, fps_label.position.y + 6.0)
 	fps_bc.is_pressed.connect(func():
 		fps_limit = {0: 60, 60: 120}.get(fps_limit, 0)
-		fps_label.text = _fps_text()
-		fit_hit.call()
+		fps_value.text = _fps_text()
 		_save())
 	var bracket2 := _add_row(av, page, "fps", "SHOW FPS", top + 114.0 - src_text.position.y,
 		func(): return show_fps, func(): show_fps = not show_fps)
@@ -366,7 +371,7 @@ func _wire_focus(buttons: Array) -> void:
 
 
 func _fps_text() -> String:
-	return "FPS LIMIT: " + ("UNLIMITED" if fps_limit == 0 else str(fps_limit))
+	return "UNLIMITED" if fps_limit == 0 else str(fps_limit)
 
 
 func _clone_button(label: Label, button: Button, parent: Node, text: String, dy: float) -> Node:
@@ -399,6 +404,7 @@ func _add_row(src: Node, parent: Node, id: String, label: String, dy: float, get
 	text.pivot_offset = Vector2.ZERO
 	text.position.x = 335.0
 	var check := src_check.duplicate(COPY_FLAGS) as TextureRect
+	check.name = id + "_check"
 	var bracket := src_bracket.duplicate(COPY_FLAGS) as CanvasItem
 	var button := src_button.duplicate(COPY_FLAGS) as Button
 	button.name = id + "_button"

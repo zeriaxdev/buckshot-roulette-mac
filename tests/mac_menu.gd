@@ -65,9 +65,15 @@ func _run():
 	page.get_node("notch_button").pressed.emit()
 	if helper.fill == fill_before: return fail("Fill checkbox did not toggle exactly once")
 	first.pressed.emit()
-	var fps_before: int = helper.fps_limit
-	page.get_node("fps_limit_button").pressed.emit()
-	if helper.fps_limit != {0: 60, 60: 120}.get(fps_before, 0): return fail("FPS limit did not advance once")
+	helper.fps_limit = 0
+	for expected in [60, 120, 0]:
+		page.get_node("fps_limit_button").pressed.emit()
+		var value = page.get_node("fps_limit_value")
+		var text := "UNLIMITED" if expected == 0 else str(expected)
+		if helper.fps_limit != expected or value.text != text: return fail("FPS values did not cycle once")
+		if page.get_node("fps_limit_label").text != "FPS LIMIT:": return fail("FPS label changed with its value")
+		if not is_equal_approx(value.get_global_rect().end.x, page.get_node("notch_check").get_global_rect().end.x):
+			return fail("FPS value does not align with the right-hand controls")
 	var show_before: bool = helper.show_fps
 	page.get_node("fps_button").pressed.emit()
 	if helper.show_fps == show_before: return fail("Show FPS checkbox did not toggle")
