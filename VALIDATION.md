@@ -26,6 +26,8 @@ It checks six representative table parts: geometry, materials and names survive,
 - Disabling mesh LOD does not fix it. The panel has no stored LODs; the precise engine-side conversion fault has not been isolated.
 - These scene renders use a separate save directory and test-only Steam stubs. They do not verify multiplayer, controller input or a full playthrough. The installed app and real saves were not changed.
 - The signed candidate contains all 3,572 original depot files. Hash comparison finds only the three expected script/class-cache changes and five Mac additions; every original scene, texture, model and audio file is byte-identical. This proves packaging preservation, not complete rendering parity.
+- A stock Godot 4.1.4/Vulkan control without the visual helper and repaired 4.4.1/Metal and Vulkan reach the same first playable turn. Camera transform, FOV, visible light values and environment settings agree. Four table regions differ by at most 0.02% in mean linear luminance.
+- Six views were compared against that control: bathroom, lobby, playable table, dealer, health counter and a controlled four-item layout. Staged snapshots align active animation phases. At least 99.65% of pixels are within two 8-bit RGB levels, with mean linear-luminance differences of 0.24% or less. This is a representative scene check, not coverage of every scene or multiplayer state.
 
 ## Verified on macOS 27.0.1, Apple M5, game v2.2.0.6
 
