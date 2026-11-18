@@ -50,8 +50,8 @@ def extract(pck, dest, full):
             path.write_bytes(data)
 
 
-def run(godot, project, script, args, log, timeout=45):
-    command = [str(godot), '--headless', '--path', str(project), '--script', str(script), '--', *map(str, args)]
+def run(godot, project, script, args, log, timeout=45, audio_driver='Dummy'):
+    command = [str(godot), '--headless', '--audio-driver', audio_driver, '--path', str(project), '--script', str(script), '--', *map(str, args)]
     try:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
         text = result.stdout.decode(errors='replace')
@@ -62,7 +62,25 @@ def run(godot, project, script, args, log, timeout=45):
     log.write_text(text)
     # The dummy headless renderer emits mesh warnings. Script errors and real lifecycle errors fail.
     return (result.returncode == 0 and 'SCENARIO PASS' in text
-            and not re.search(r'SCRIPT ERROR|Parameter .*null|TEST TIMEOUT', text))
+            and not re.search(r'SCRIPT ERROR|Parameter .*null|TEST TIMEOUT|not all arguments converted|Failed loading resource', text))
+
+
+def isolate_runtime(project):
+    """Disable SDK initialization only in the disposable extracted test project."""
+    steam = project / 'scripts/Steam.gd'
+    text, count = re.subn(
+        r'(?ms)^func (_ready|_process)\([^\n]*\n.*?(?=^func |\Z)',
+        lambda m: f'func {m[1]}({"_delta" if m[1] == "_process" else ""}):\n\tpass\n\n',
+        steam.read_text(),
+    )
+    if count != 2:
+        raise ValueError('Unexpected Steam script layout in test fixture')
+    globals_file = project / 'scripts/GlobalVariables.gd'
+    globals_text = globals_file.read_text()
+    if globals_text.count('var using_steam = true') != 1:
+        raise ValueError('Unexpected Steam flag in test fixture')
+    steam.write_text(text)
+    globals_file.write_text(globals_text.replace('var using_steam = true', 'var using_steam = false'))
 
 
 def main():
@@ -72,6 +90,7 @@ def main():
     parser.add_argument('--scenario', choices=['lifecycle', 'death', 'all'], default='all')
     parser.add_argument('--repeat', type=int, default=1)
     parser.add_argument('--baseline', action='store_true')
+    parser.add_argument('--audio-driver', choices=['Dummy', 'CoreAudio'], default='Dummy', help='CoreAudio tests are muted and do not enable microphone input')
     parser.add_argument('--logs', type=Path, default=ROOT / 'local/test-logs')
     args = parser.parse_args()
     if not 1 <= args.repeat <= 100:
@@ -93,7 +112,8 @@ def main():
             (bootstrap / '.godot/global_script_class_cache.cfg').write_text('list=[]\n')
             (bootstrap / 'project.godot').write_text(
                 '[application]\nconfig/name="Buckshot tests"\nconfig/use_custom_user_dir=true\n'
-                f'config/custom_user_dir_name="{save_name}"\n[debug]\nfile_logging/enable_file_logging=false\n')
+                f'config/custom_user_dir_name="{save_name}"\n[debug]\nfile_logging/enable_file_logging=false\n'
+                '[audio]\ndriver/enable_input=false\n')
             game = work / 'game'
             extract(pck, game, args.scenario != 'lifecycle')
             mode = 'baseline' if args.baseline else 'patched'
@@ -113,12 +133,16 @@ def main():
                 native.mkdir(parents=True, exist_ok=True)
                 (native / framework.name).symlink_to(framework.resolve())
                 (game / 'override.cfg').write_text((bootstrap / 'project.godot').read_text())
+                isolate_runtime(game)
                 for i in range(args.repeat):
-                    for target, health, damage in [('heaven', 1, 1), ('heaven', 2, 2), ('death', 1, 1)]:
+                    for target, health, damage in [('heaven', 1, 1), ('heaven', 2, 2), ('heaven', 1, 2),
+                                                  ('death', 1, 1), ('alive', 4, 2), ('escape', 4, 1)]:
                         # Each case starts without the previous case's checkpoint.
                         shutil.rmtree(save_dir, ignore_errors=True)
                         log = logs / f'{target}-{health}-{damage}-{i}.log'
-                        ok = run(args.godot, game, ROOT / 'tests/game_scenarios.gd', [save_name, target, health, damage], log)
+                        scenario_args = [save_name, target, health, damage]
+                        if args.audio_driver == 'CoreAudio': scenario_args.append('mute')
+                        ok = run(args.godot, game, ROOT / 'tests/game_scenarios.gd', scenario_args, log, audio_driver=args.audio_driver)
                         failures += not ok
                         print(f'{"PASS" if ok else "FAIL"} {target} hp={health} damage={damage} #{i+1}; {log}', flush=True)
     finally:

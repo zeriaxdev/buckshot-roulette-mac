@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from scripts.test_game import extract, run
+from scripts.test_game import extract, isolate_runtime, run
 
 
 def archive(name, payload=b'test'):
@@ -47,3 +47,38 @@ class RunnerChecks(unittest.TestCase):
             with patch('scripts.test_game.subprocess.run', side_effect=error):
                 self.assertFalse(run('godot', '.', 'test.gd', [], log))
             self.assertIn('before timeout', log.read_text())
+
+    def test_success_marker_does_not_hide_translation_error(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            result = subprocess.CompletedProcess([], 0, b'ERROR: not all arguments converted\nSCENARIO PASS')
+            with patch('scripts.test_game.subprocess.run', return_value=result):
+                self.assertFalse(run('godot', '.', 'test.gd', [], Path(scratch) / 'log'))
+
+    def test_fixture_disables_sdk_but_keeps_other_methods(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            project = Path(scratch)
+            scripts = project / 'scripts'; scripts.mkdir()
+            steam = scripts / 'Steam.gd'
+            steam.write_text('extends Node\nfunc _ready():\n\tInitializeSteam()\n\nfunc _process(delta):\n\tSteam.run_callbacks()\n\nfunc helper():\n\treturn 1\n')
+            (scripts / 'GlobalVariables.gd').write_text('var using_steam = true\n')
+            isolate_runtime(project)
+            self.assertNotIn('InitializeSteam()', steam.read_text())
+            self.assertNotIn('Steam.run_callbacks()', steam.read_text())
+            self.assertIn('func helper():\n\treturn 1', steam.read_text())
+            self.assertEqual((scripts / 'GlobalVariables.gd').read_text(), 'var using_steam = false\n')
+
+    def test_requested_audio_driver_is_passed_to_runtime(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            result = subprocess.CompletedProcess([], 0, b'SCENARIO PASS')
+            with patch('scripts.test_game.subprocess.run', return_value=result) as process:
+                self.assertTrue(run('godot', '.', 'test.gd', [], Path(scratch) / 'log', audio_driver='CoreAudio'))
+            self.assertEqual(process.call_args.args[0][1:4], ['--headless', '--audio-driver', 'CoreAudio'])
+
+    def test_unknown_fixture_layout_fails_without_rewriting(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            project = Path(scratch)
+            scripts = project / 'scripts'; scripts.mkdir()
+            steam = scripts / 'Steam.gd'; original = 'func _ready():\n\tInitializeSteam()\n'
+            steam.write_text(original)
+            with self.assertRaises(ValueError): isolate_runtime(project)
+            self.assertEqual(steam.read_text(), original)
