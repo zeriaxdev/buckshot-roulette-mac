@@ -88,7 +88,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
-- Discord accepted a real-game presence update under the correct application ID. Its visible verified-game badge remains unverified; this does not make the port an official publisher release. Discord invitations are not implemented.
+- Discord presence publishes profile activity, but does not add verified detection in Added Games. Discord's detection catalog currently lists only the Windows executable for Buckshot; native Mac detection requires a Discord-side update. Discord invitations are not implemented.
 - Not tested yet: a full online match between Mac and Windows players, and Xbox or Switch controllers.
 
 ## Unofficial project

@@ -10,7 +10,7 @@ The locally patched Steam startup launches it only after the ownership check suc
 
 A separate process keeps socket errors and delays outside the game thread. If Discord is absent, only the helper retries; the game continues. The game executable and bundle entry point keep their existing names. No Discord GDExtension is required for this small integration.
 
-The live protocol trial returned application ID 1225535693791432814, name Buckshot Roulette and activity type Playing, and acknowledged clearing. The visible verified-game badge was not observed because macOS screen capture failed. Protocol acceptance alone does not establish the badge or publisher endorsement. Intel hardware remains untested.
+The live protocol trial returned application ID 1225535693791432814, name Buckshot Roulette and activity type Playing, and acknowledged clearing. This publishes profile activity; it does not register the executable in Discord's Added Games list or grant verified detection. On 18 November 2026, Discord's [public detection catalog](https://discord.com/api/v9/applications/detectable) listed only `buckshot roulette_windows/buckshot roulette.exe` with OS `win32` for this application, with no macOS entry. The user confirmed that the Mac game was absent from Added Games. A matching macOS detector requires a Discord-side catalog update, not an executable rename or another RPC call. The helper is about 86 KB; it is not a bundled Discord SDK. Intel hardware remains untested.
 
 Tests use a fake socket in a private temporary directory and never contact the real Discord client. They check fragmented frames, activity PID/timestamp, ping/pong, cleanup after the simulated game exits, and an oversized reply.
 
