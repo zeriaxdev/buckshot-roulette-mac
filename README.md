@@ -1,6 +1,6 @@
 # Buckshot Roulette for macOS
 
-Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac, built from your own Steam copy. It renders with Metal, and Steam achievements, the Shift+Tab overlay, Invite Friends, online lobbies and PlayStation controllers all work.
+Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac with Metal, built from your own Steam copy. Online lobbies and an achievement have been observed; a full multiplayer match, overlay/invitations and physical controller interaction still need verification.
 
 > [!IMPORTANT]
 > **Steam version only.** You need to own Buckshot Roulette on Steam. This repo doesn't contain the game and doesn't download it. It turns the copy you already own into a Mac app. It's not a way to play without buying it, so please don't ask for builds or game files. Don't have it yet? [Get it on Steam](https://store.steampowered.com/app/2835570/).
@@ -57,7 +57,7 @@ The game's files are copied as they are. The builder adds:
 | Table geometry compatibility | The Mac helper rebuilds static table parts in memory to remove a dark panel seam and false gaps around the table edges on Godot 4.4. Their vertices, UVs and materials are preserved. |
 | A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
 | `override.cfg` | Picks the Metal renderer. |
-| A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
+| A small `launch` script | Sets the Steam environment and Metal overlay hook. Shift+Tab and Invite Friends still require an end-to-end check. |
 
 Menus, text and gameplay stay as they are. Scene files are not rewritten; the table repair runs when the scene loads.
 
@@ -83,6 +83,8 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - **Anything else**: open an issue and attach `~/Library/Caches/buckshot-roulette-mac/build.log`.
 
 ## Known limits
+
+To check multiplayer, double-click **Test Multiplayer.command**. Follow the [five-step checklist](MULTIPLAYER_TESTING.md) with a second player on another computer. Results stay private; skipped checks are not passes. The script never closes the game.
 
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
