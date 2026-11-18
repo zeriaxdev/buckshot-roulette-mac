@@ -53,9 +53,16 @@ func _run():
 		if focus == null or not page.is_ancestor_of(focus): return fail("Focus escaped the MAC page")
 		visited.append(focus)
 		focus = focus.find_valid_focus_neighbor(SIDE_BOTTOM)
-	if visited.size() != 4 or focus != first: return fail("Not all four MAC controls are reachable")
+	if visited.size() != 5 or focus != first: return fail("Not all five MAC controls are reachable")
 	var fill_before: bool = helper.fill
 	first.pressed.emit()
+	var notch_before: bool = helper.include_notch
+	page.get_node("notch_button").pressed.emit()
+	if helper.include_notch == notch_before: return fail("Notch checkbox did not toggle exactly once")
+	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(helper.SETTINGS))
+	if not saved is Dictionary or saved.get("include_notch") != helper.include_notch:
+		return fail("Notch preference was not saved")
+	page.get_node("notch_button").pressed.emit()
 	if helper.fill == fill_before: return fail("Fill checkbox did not toggle exactly once")
 	first.pressed.emit()
 	var fps_before: int = helper.fps_limit
@@ -66,9 +73,9 @@ func _run():
 	if helper.show_fps == show_before: return fail("Show FPS checkbox did not toggle")
 	if menu.optionmanager.setting_greyscale_death != native_greyscale:
 		return fail("Mac settings also triggered the original greyscale action")
-	for name in ["fill_label", "fps_limit_label", "fps_label"]:
+	for name in ["fill_label", "notch_label", "fps_limit_label", "fps_label"]:
 		var label = page.get_node(name)
-		if not is_equal_approx(label.get_global_rect().position.x, 335.0) or label.position.y > 150.0 or label.horizontal_alignment != HORIZONTAL_ALIGNMENT_LEFT:
+		if not is_equal_approx(label.get_global_rect().position.x, 335.0) or label.position.y > 175.0 or label.horizontal_alignment != HORIZONTAL_ALIGNMENT_LEFT:
 			return fail("Mac settings are not aligned at the top")
 	var cancel := InputEventAction.new()
 	cancel.action = "ui_cancel"; cancel.pressed = true
@@ -82,7 +89,7 @@ func _run():
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(OS.get_cmdline_user_args()[1])
-	print("PASS Mac menu: top alignment, four controls, native settings isolation, controller focus and both returns")
+	print("PASS Mac menu: top alignment, five controls, saved notch toggle, native settings isolation, controller focus and both returns")
 	scene.queue_free(); helper.queue_free()
 	await process_frame
 	await process_frame

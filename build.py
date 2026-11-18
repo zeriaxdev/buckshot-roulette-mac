@@ -161,6 +161,7 @@ def app_metadata() -> dict:
         "LSMinimumSystemVersion": "10.12",
         "NSPrincipalClass": "NSApplication",
         "NSHighResolutionCapable": True,
+        "NSPrefersDisplaySafeAreaCompatibilityMode": False,
         "NSAppSleepDisabled": True,
     }
 

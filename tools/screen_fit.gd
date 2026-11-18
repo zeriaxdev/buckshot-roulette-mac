@@ -11,6 +11,7 @@ const BASE := Vector2(960, 540)
 const COPY_FLAGS := Node.DUPLICATE_GROUPS | Node.DUPLICATE_SCRIPTS
 
 var fill := false
+var include_notch := false
 var fps_limit := 0  # 0 = unlimited (the game's default)
 var show_fps := false
 var _fps_label: Label
@@ -54,6 +55,7 @@ func _ready() -> void:
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS))
 		if parsed is Dictionary:
 			fill = bool(parsed.get("fill_screen", false))
+			include_notch = bool(parsed.get("include_notch", false))
 			fps_limit = int(parsed.get("fps_limit", 0))
 			show_fps = bool(parsed.get("show_fps", false))
 	if "--fill-screen" in OS.get_cmdline_user_args() or "--fill-screen" in OS.get_cmdline_args():
@@ -62,30 +64,31 @@ func _ready() -> void:
 		_test_scene()
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().root.size_changed.connect(_apply)
+	get_tree().root.titlebar_changed.connect(_apply)
 	_apply()
 
 
 func _save() -> void:
 	var out := FileAccess.open(SETTINGS, FileAccess.WRITE)
 	if out:
-		out.store_string(JSON.stringify({"fill_screen": fill, "fps_limit": fps_limit, "show_fps": show_fps}))
+		out.store_string(JSON.stringify({"fill_screen": fill, "include_notch": include_notch, "fps_limit": fps_limit, "show_fps": show_fps}))
 		out.close()
 	_apply()
 
 
 func _apply() -> void:
 	var root := get_tree().root
+	var extend := fill and include_notch and root.mode >= Window.MODE_FULLSCREEN
+	if root.extend_to_title != extend:
+		root.extend_to_title = extend
 	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND if fill else Window.CONTENT_SCALE_ASPECT_KEEP
 	# the scaled view rarely matches the window to the pixel (960x602 -> 1896 of 1898 px):
 	# the leftover row shows the clear colour, the game's grey, as a thin line
 	RenderingServer.set_default_clear_color(Color.BLACK if fill else ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color"))
 	var visible := root.get_visible_rect().size
 	_top = 0.0
-	if fill and root.mode >= Window.MODE_FULLSCREEN:
-		# On a notched MacBook the fullscreen window includes the notch row: keep that
-		# row black and centre the game below it.
-		# only the part of the notch row that actually overlaps the window (macOS usually
-		# places fullscreen windows below the notch already, then this is 0)
+	if fill and not include_notch and root.mode >= Window.MODE_FULLSCREEN:
+		# Reserve only the safe-area row that overlaps the fullscreen window when opted out.
 		var safe := DisplayServer.get_display_safe_area()
 		var top_px := float(safe.position.y - root.position.y)
 		_top = ceilf(maxf(0.0, top_px * visible.y / float(root.size.y)))  # whole pixels: no half-covered line
@@ -265,12 +268,15 @@ func _add_mac_page(sub: Control) -> void:
 	var top: float = av.get_node("text_color blind mode").position.y
 	var bracket := _add_row(av, page, "fill", "FILL SCREEN 16:10 *", top - src_text.position.y,
 		func(): return fill, func(): fill = not fill)
+	var notch_bracket := _add_row(av, page, "notch", "INCLUDE NOTCH AREA *", top + 38.0 - src_text.position.y,
+		func(): return include_notch, func(): include_notch = not include_notch)
+	page.get_node("notch_button").tooltip_text = "Draw beside the notch in fullscreen when Fill Screen is on."
 	var fps_label := src_text.duplicate(COPY_FLAGS) as Label
 	fps_label.name = "fps_limit_label"
 	fps_label.text = _fps_text()
 	fps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	fps_label.pivot_offset = Vector2.ZERO
-	fps_label.position = Vector2(335.0, top + 38.0)
+	fps_label.position = Vector2(335.0, top + 76.0)
 	page.add_child(fps_label)
 	var fps_button := av.get_node("true button_greyscale death").duplicate(COPY_FLAGS) as Button
 	fps_button.name = "fps_limit_button"
@@ -291,18 +297,18 @@ func _add_mac_page(sub: Control) -> void:
 		fps_label.text = _fps_text()
 		fit_hit.call()
 		_save())
-	var bracket2 := _add_row(av, page, "fps", "SHOW FPS", top + 76.0 - src_text.position.y,
+	var bracket2 := _add_row(av, page, "fps", "SHOW FPS", top + 114.0 - src_text.position.y,
 		func(): return show_fps, func(): show_fps = not show_fps)
-	for br in [bracket, bracket2]:
+	for br in [bracket, notch_bracket, bracket2]:
 		if br:
 			# the game shows option brackets only while a controller is in use
 			menu.controller.brackets.append(br)
 			br.visible = menu.cursor.controller_active
 	var note := src_text.duplicate(COPY_FLAGS) as Label
-	note.text = "* EXPERIMENTAL\nNOTCH AREA KEPT CLEAR AUTOMATICALLY"
+	note.text = "* EXPERIMENTAL"
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	note.pivot_offset = Vector2.ZERO
-	note.position = Vector2(335.0, top + 119.0)
+	note.position = Vector2(335.0, top + 157.0)
 	note.add_theme_font_size_override("font_size", int(src_text.get_theme_font_size("font_size") * 0.7))
 	note.modulate.a = 0.6
 	page.add_child(note)
@@ -333,7 +339,7 @@ func _add_mac_page(sub: Control) -> void:
 	_wire_focus([entry.get_parent(), sub.get_node("true button_audio video"), sub.get_node("true button_language"),
 		sub.get_node("true button_controller"), sub.get_node("true button_exit sub options")])
 	var first := page.get_node("fill_button") as Button
-	_wire_focus([first, fps_button, page.get_node("fps_button"), back.get_parent()])
+	_wire_focus([first, page.get_node("notch_button"), fps_button, page.get_node("fps_button"), back.get_parent()])
 	entry.is_pressed.connect(func():
 		# MenuManager has no MAC case; use its known screen first, then set our page/focus.
 		menu.Show("sub options")
