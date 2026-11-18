@@ -426,7 +426,17 @@ func _add_mac_page(sub: Control) -> void:
 	_wire_focus([entry.get_parent(), sub.get_node("true button_audio video"), sub.get_node("true button_language"),
 		sub.get_node("true button_controller"), sub.get_node("true button_exit sub options")])
 	var first := page.get_node("fill_button") as Button
-	_wire_focus([first, page.get_node("notch_button"), fps_button, page.get_node("fps_button"), back.get_parent()])
+	var update_notch := func():
+		var button := page.get_node("notch_button") as Button
+		button.disabled = not fill
+		button.get_child(0).isActive = fill
+		for row in ["notch_label", "notch_check"]:
+			page.get_node(row).self_modulate.a = 1.0 if fill else 0.35
+		var buttons := [first, fps_button, page.get_node("fps_button"), back.get_parent()]
+		if fill: buttons.insert(1, button)
+		_wire_focus(buttons)
+	first.get_child(0).is_pressed.connect(update_notch)
+	update_notch.call()
 	entry.is_pressed.connect(func():
 		# MenuManager has no MAC case; use its known screen first, then set our page/focus.
 		menu.Show("sub options")
