@@ -17,6 +17,25 @@ def archive(name, payload=b'test'):
 
 
 class RunnerChecks(unittest.TestCase):
+    def test_runtime_with_game_pack_is_rejected_before_launch(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            for runtime in [root / 'godot', root / 'Game.app/Contents/MacOS/Game']:
+                runtime.parent.mkdir(parents=True, exist_ok=True)
+                pack = runtime.with_suffix('.pck') if runtime.name == 'godot' else runtime.parent.parent / 'Resources/Game.pck'
+                pack.parent.mkdir(parents=True, exist_ok=True)
+                pack.write_bytes(b'pack')
+                with patch('scripts.test_game.subprocess.run') as process:
+                    with self.assertRaisesRegex(ValueError, 'adjacent game pack'):
+                        run(runtime, '.', 'test.gd', [], root / 'log')
+                    process.assert_not_called()
+
+    def test_missing_extension_is_failure(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            result = subprocess.CompletedProcess([], 0, b"Error loading extension: fullscreen\nSCENARIO PASS")
+            with patch('scripts.test_game.subprocess.run', return_value=result):
+                self.assertFalse(run('godot', '.', 'test.gd', [], Path(scratch) / 'log'))
+
     def test_extract_rejects_path_traversal(self):
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)

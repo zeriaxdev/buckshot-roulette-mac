@@ -51,6 +51,9 @@ def extract(pck, dest, full):
 
 
 def run(godot, project, script, args, log, timeout=45, audio_driver='Dummy'):
+    runtime = Path(godot).resolve()
+    if any(path.is_file() for path in [runtime.with_suffix('.pck'), runtime.parent.parent / 'Resources' / (runtime.name + '.pck')]):
+        raise ValueError('Use a standalone Godot runtime: an adjacent game pack overrides the isolated test project')
     command = [str(godot), '--headless', '--audio-driver', audio_driver, '--path', str(project), '--script', str(script), '--', *map(str, args)]
     try:
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
@@ -62,7 +65,7 @@ def run(godot, project, script, args, log, timeout=45, audio_driver='Dummy'):
     log.write_text(text)
     # The dummy headless renderer emits mesh warnings. Script errors and real lifecycle errors fail.
     return (result.returncode == 0 and 'SCENARIO PASS' in text
-            and not re.search(r'SCRIPT ERROR|Parameter .*null|TEST TIMEOUT|not all arguments converted|Failed loading resource', text))
+            and not re.search(r'SCRIPT ERROR|Parameter .*null|TEST TIMEOUT|not all arguments converted|Failed loading resource|Error loading extension|Can.t open dynamic library', text))
 
 
 def isolate_runtime(project):
@@ -132,6 +135,11 @@ def main():
                 native = game / 'addons/godotsteam/osx'
                 native.mkdir(parents=True, exist_ok=True)
                 (native / framework.name).symlink_to(framework.resolve())
+                fullscreen = args.app / 'Contents/Frameworks/BuckshotFullscreen.framework'
+                if fullscreen.exists():
+                    native_fullscreen = game / 'mac/osx'
+                    native_fullscreen.mkdir(parents=True, exist_ok=True)
+                    (native_fullscreen / fullscreen.name).symlink_to(fullscreen.resolve())
                 (game / 'override.cfg').write_text((bootstrap / 'project.godot').read_text())
                 isolate_runtime(game)
                 for i in range(args.repeat):
