@@ -61,7 +61,7 @@ The builder preserves the shipped assets and applies these additions and compati
 
 | A **MAC** page in Options | First entry in Options (the other entries move down one row, lined up with the main menu). It has **FILL SCREEN 16:10 \*** (experimental, off by default), **FPS LIMIT** (unlimited, 60 or 120) and **SHOW FPS**, built from copies of the game's own menu items. Fill Screen fills a 16:10 screen instead of showing black bars: menus stay centred, the camera keeps its 16:9 width and shows a little more above and below. Saved in `mac_screen.json` next to the game's settings. |
 
-The MAC entry and its page are the only menu changes. The camera and raycast scripts are patched for Fill Screen, including conversion of controller item-target coordinates. Game rules and shipped scene assets are preserved.
+The MAC entry and its page are the only menu changes. Its settings start at the top like Audio/Video, with aligned labels and a note that notch clearance is automatic. It uses the game's own controls, with explicit controller focus and return paths. The camera and raycast scripts are patched for Fill Screen, including conversion of controller item-target coordinates. Game rules and shipped scene assets are preserved.
 
 ## Ownership
 
@@ -89,7 +89,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
-- Fill Screen is experimental. The MAC page works with the mouse; a controller can't reach it yet. Checked on the menu, Options, the MAC page, the loading screen, the multiplayer lobby, bathroom and table; death, win and heaven not yet.
+- Fill Screen is experimental. Mac-page focus, all four controls and both return paths pass an isolated real-menu check; physical controller input still needs a play check. Checked on the menu, Options, the MAC page, the loading screen, the multiplayer lobby, bathroom and table; expanded death, win and heaven views remain unverified.
 - Not tested yet: a full online match between Mac and Windows players, and Xbox or Switch controllers.
 
 ## Unofficial project

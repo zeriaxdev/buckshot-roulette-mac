@@ -48,4 +48,8 @@ Run with the cached Godot 4.4.1 editor, an empty project directory, `--headless 
 
 A separate test copy reproduces the rectangular dark seam at the player-facing table panel. It appears on Godot 4.4.1 with Metal and Vulkan, with Fill Screen on or off, and remains when scene shadows are disabled. The same table view is clean under Godot 4.1.4/Vulkan. This narrows the defect to an engine-upgrade compatibility regression; no visual workaround has been applied. The screenshots and exploratory fixtures remain private temporary files.
 
-A separate MAC-page navigation fixture could not reliably initialize the real menu without an engine `Parent node is busy` error. It is not counted as a passed integration test. The existing controller-navigation limitation remains open.
+## Mac-page layout and navigation
+
+`tests/mac_menu.gd` runs against an extracted, SDK-disabled test fixture with a separate save directory. Deferred scene/helper attachment avoids the earlier fixture-only `Parent node is busy` error. The real menu passes opening MAC with controller focus, reaching all four controls, toggling each setting once without changing the original greyscale setting, and returning through both cancel and Return. Labels share a rendered left edge at the top of the page. An offscreen Metal screenshot was inspected; the inherited label pivots are reset so the text stays in its intended column. Notch clearance remains automatic and is explained on the page.
+
+The fixture still reports resource-cleanup warnings at exit; this is not a clean full-game shutdown test. Physical DualShock input and the actual display's notch remain manual checks. Private screenshots and game fixtures are not included in the repository.
