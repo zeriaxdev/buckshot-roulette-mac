@@ -23,6 +23,35 @@ class BuildChecks(unittest.TestCase):
         self.assertTrue(all("$" not in str(v) for v in meta.values()))
 
 
+class SetupChecks(unittest.TestCase):
+    def test_existing_game_skips_console(self):
+        with patch("build.find_depot_exe", return_value=Path("owned.exe")), patch("build.subprocess.run") as opened:
+            self.assertEqual(build.locate_game(None), Path("owned.exe"))
+            opened.assert_not_called()
+
+    def test_continue_after_download_in_same_run(self):
+        with patch("build.find_depot_exe", side_effect=[None, Path("owned.exe")]), patch("build.sys.stdin.isatty", return_value=True), patch("build.ask", return_value=""), patch("build.subprocess.run") as opened:
+            self.assertEqual(build.locate_game(None), Path("owned.exe"))
+            opened.assert_called_once_with(["open", "steam://open/console"])
+
+    def test_noninteractive_missing_game_stops_without_opening_apps(self):
+        with patch("build.find_depot_exe", return_value=None), patch("build.sys.stdin.isatty", return_value=False), patch("build.subprocess.run") as opened:
+            with self.assertRaisesRegex(ValueError, "--game"):
+                build.locate_game(None)
+            opened.assert_not_called()
+
+    def test_cancel_does_not_recheck_or_build(self):
+        with patch("build.find_depot_exe", return_value=None) as find, patch("build.sys.stdin.isatty", return_value=True), patch("build.ask", return_value="q"), patch("build.subprocess.run"):
+            with self.assertRaisesRegex(ValueError, "Cancelled"):
+                build.locate_game(None)
+            self.assertEqual(find.call_count, 1)
+
+    def test_incomplete_download_stops(self):
+        with patch("build.find_depot_exe", return_value=None), patch("build.sys.stdin.isatty", return_value=True), patch("build.ask", return_value=""), patch("build.subprocess.run"):
+            with self.assertRaisesRegex(ValueError, "Let Steam finish"):
+                build.locate_game(None)
+
+
 class InstallChecks(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

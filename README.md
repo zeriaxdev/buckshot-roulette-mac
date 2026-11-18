@@ -24,27 +24,26 @@ Buckshot Roulette only comes out for Windows, but it's made in Godot, and Godot 
 
 ## Install
 
-You need Steam signed in to the account that owns the game, and Python 3. If Python is missing, macOS offers to install it the first time.
+You need Steam signed in to the account that owns the game, and Python 3. If Python is unavailable, install it from [python.org](https://www.python.org/downloads/macos/).
 
-1. **Download the Windows game files.** Paste `steam://open/console` into your browser's address bar to open Steam's console, type this and press Enter:
+1. **Download this builder.** Get the [source ZIP](https://github.com/zeriaxdev/buckshot-roulette-mac/archive/refs/heads/main.zip) and extract it.
+2. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, go to **System Settings → Privacy & Security** and click **Open Anyway**. Answer the ownership question. If the Windows game files are missing, the installer opens Steam's Console tab and shows the command to paste there. Wait for `Depot download complete`, then press Enter in the installer to continue the same run.
+3. **Play.** Open **Buckshot Roulette** from the **Applications** folder in your home folder. Keep Steam running.
 
-   ```
-   download_depot 2835570 2835572
-   ```
-
-   Wait for `Depot download complete` (about 800 MB). Steam only lets accounts that own the game do this.
-
-2. **Download this builder.** Get the ZIP from the [latest release](https://github.com/zeriaxdev/buckshot-roulette-mac/releases/latest) and extract it.
-3. **Double-click `Install Buckshot Roulette.command`.** If macOS blocks it, go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. Answer **y** when it asks whether you own the game.
-4. **Play.** Open **Buckshot Roulette** from the **Applications** folder in your home folder. Keep Steam running.
+Steam downloads about 800 MB from your own account. The installer does not ask for your Steam password or copy anything to your clipboard.
 
 The first build downloads Godot 4.4.1 (about 230 MB) and GodotSteam 4.10 (12 MB) from their official releases and checks each against a fixed SHA-256 hash. They stay cached in `~/Library/Caches/buckshot-roulette-mac`, so later builds take about 10 seconds.
 
-Prefer Terminal? Run `python3 build.py`. Options: `--icon file.icns` (your own icon instead of the generated one), `--output path.app`, `--replace`, `--game path/to/Buckshot\ Roulette.exe`, and `--i-own-the-game` to skip the questions.
+Prefer Terminal? Run `python3 build.py`. Options: `--icon file.icns` (your own icon instead of the generated one), `--output path.app`, `--replace`, `--game path/to/Buckshot\ Roulette.exe`, and `--i-own-the-game` to skip the ownership question.
 
 ## Updating
 
-When Steam updates the game, run `download_depot 2835570 2835572` again, then run the installer and answer **y** to replace the app. The working app stays installed until the replacement finishes building and its signature verifies. The old app then goes to the Trash; if the final swap fails, it is restored. Your saves stay where they are.
+**There are no automatic updates.** The app does not check for updates, download a new builder, or replace itself in the background.
+
+- **Port fixes:** download the latest builder source ZIP and run its installer again. An old installer keeps using its own version of the port.
+- **Game updates:** open `steam://open/console` and run `download_depot 2835570 2835572` again. Wait for the download to complete, then run the installer. Existing depot files are reused as-is until you refresh them through Steam.
+
+Answer **y** to replace the app. The working app stays installed until the replacement finishes building and its signature verifies. The old app then goes to the Trash; if the final swap fails, it is restored. Your saves stay where they are.
 
 ## What the builder changes
 
@@ -78,7 +77,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 ## Troubleshooting
 
 - **"must be owned on Steam"**: start Steam, sign in to the account that owns the game, and open the game again.
-- **The builder says the game files aren't downloaded**: do step 1 of [Install](#install). The builder looks in Steam's default library folder. If yours is elsewhere, pass `--game`.
+- **The builder says the game files aren't downloaded**: follow the Steam Console instructions in the installer. The builder looks in Steam's default library folder. If yours is elsewhere, pass `--game`.
 - **Checksum mismatch**: a download got damaged or changed. Delete `~/Library/Caches/buckshot-roulette-mac` and try again. If it keeps happening, open an issue.
 - **Anything else**: open an issue and attach `~/Library/Caches/buckshot-roulette-mac/build.log`.
 

@@ -182,6 +182,24 @@ def ask(question: str) -> str:
         return ""
 
 
+def locate_game(selected: Path | None) -> Path:
+    game = selected or find_depot_exe()
+    if game:
+        return game
+    command = f"download_depot {APP_ID} {DEPOT_ID}"
+    if not sys.stdin.isatty():
+        raise ValueError(f"Windows game files not found. Run '{command}' in Steam's console, or pass --game.")
+    subprocess.run(["open", "steam://open/console"])
+    print(f"\nIn Steam's Console tab, paste this and press Enter:\n\n    {command}\n\n"
+          "Wait until Steam says 'Depot download complete', then return here.")
+    if ask("Press Enter to continue, or type q to cancel: ").lower() == "q":
+        raise ValueError("Cancelled. Your installed app was kept.")
+    game = find_depot_exe()
+    if not game:
+        raise ValueError("Download not found yet. Let Steam finish, then run the installer again; or pass --game for another library.")
+    return game
+
+
 def install_app(app: Path, out: Path, replace_existing: bool) -> None:
     # Stage on the destination volume before moving the working app out of the way.
     with tempfile.TemporaryDirectory(prefix=".br-install-", dir=out.parent) as scratch:
@@ -220,12 +238,7 @@ def main(argv: list[str] | None = None) -> int:
           f"Buy it: https://store.steampowered.com/app/{APP_ID}/\n")
     if not a.i_own_the_game and ask(f"Do you own {NAME} on Steam? [y/N] ").lower() not in ("y", "yes"):
         raise ValueError("This builder is only for people who own the game (add --i-own-the-game when not interactive)")
-    game = a.game or find_depot_exe()
-    if not game:
-        subprocess.run(["open", "steam://open/console"])
-        raise ValueError(f"The Windows game files aren't downloaded yet. Steam's console just opened: type\n"
-                         f"    download_depot {APP_ID} {DEPOT_ID}\n"
-                         f"press Enter, wait for 'Depot download complete', then run this again.")
+    game = locate_game(a.game)
     game = game.expanduser().resolve()
     check_exe(game)
     icon = a.icon
