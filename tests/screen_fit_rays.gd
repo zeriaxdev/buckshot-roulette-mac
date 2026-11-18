@@ -14,7 +14,7 @@ func _run():
 	fitted.fov = 75
 	expanded.add_child(fitted); root.add_child(expanded)
 	var comparisons := 0
-	for size in [Vector2i(960, 540), Vector2i(960, 600), Vector2i(1200, 600)]:
+	for size in [Vector2i(960, 540), Vector2i(960, 600), Vector2i(960, 624), Vector2i(1200, 600)]:
 		expanded.size = size
 		helper._fit_camera(fitted)
 		for point in [Vector2(240, 400), Vector2(720, 400), Vector2(480, 270), Vector2(100, 80)]:
