@@ -1,6 +1,6 @@
 # Buckshot Roulette for macOS
 
-Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac, built from your own Steam copy. It renders with Metal, and Steam achievements, the Shift+Tab overlay, Invite Friends, online lobbies and PlayStation controllers all work.
+Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac with Metal, built from your own Steam copy. See [validation](VALIDATION.md) and [known limits](#known-limits) for tested behavior and remaining checks.
 
 > [!IMPORTANT]
 > **Steam version only.** You need to own Buckshot Roulette on Steam. This repo doesn't contain the game and doesn't download it. It turns the copy you already own into a Mac app. It's not a way to play without buying it, so please don't ask for builds or game files. Don't have it yet? [Get it on Steam](https://store.steampowered.com/app/2835570/).
@@ -20,7 +20,7 @@ Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively o
 
 ## Why this exists
 
-Buckshot Roulette only comes out for Windows, but it's made in Godot, and Godot runs on macOS. So the builder takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 Mac runtime, with Steam support added. You get a real Mac app: Metal rendering, controllers through Apple's GameController framework, no Wine or CrossOver.
+Buckshot Roulette ships for Windows and Linux. This builder takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 Mac runtime, with Steam support added. You get a Mac app with Metal rendering, without Wine or CrossOver.
 
 ## Install
 
@@ -53,6 +53,7 @@ The game's files are copied as they are. The builder adds:
 | --- | --- |
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
+| Discord presence helper | After the ownership check, reports Playing under Buckshot Roulette's application ID to the running Discord client. It follows your activity-sharing settings and clears when the game exits. No account credentials, binary rename or Discord SDK download is needed. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
 | Table geometry compatibility | The Mac helper rebuilds static table parts in memory to remove a dark panel seam and false gaps around the table edges on Godot 4.4. Their vertices, UVs and materials are preserved. |
 | A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. `override.cfg` keeps it in the Dock while the game runs. |
@@ -87,6 +88,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
+- Discord accepted a real-game presence update under the correct application ID. Its visible verified-game badge remains unverified; this does not make the port an official publisher release. Discord invitations are not implemented.
 - Not tested yet: a full online match between Mac and Windows players, and Xbox or Switch controllers.
 
 ## Unofficial project

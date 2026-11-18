@@ -23,3 +23,11 @@ jobs:
         run: |
           git archive --format=zip -o release-check.zip HEAD
           python3 scripts/check_no_game_files.py --zip release-check.zip
+  discord:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild the asset-free Discord helper for both architectures
+        run: python3 tools/discord/build.py
+      - name: Check framing, ping, cleanup and malformed replies with a fake local client
+        run: python3 -m unittest discover -s tests -p test_discord_presence.py

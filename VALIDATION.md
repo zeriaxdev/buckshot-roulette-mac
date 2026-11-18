@@ -57,3 +57,9 @@ A short test on one scene, not a benchmark.
 - Xbox and Switch controllers
 - Intel Macs
 - Steam libraries outside the default folder (use `--game`)
+
+## Discord presence
+
+The live local RPC test accepted Buckshot's application ID 1225535693791432814, returned the name Buckshot Roulette with Playing activity type, and acknowledged clearing after a bounded real-game session. No executable rename, steam_appid.txt addition or Discord SDK library was needed. The installed build was unchanged during that protocol trial.
+
+The packaged helper's Universal 2 artifact and fake-client protocol tests pass locally. Tests cover fragmented replies, real PID association, ping/pong, parent-exit cleanup and oversized frames. ScreenCaptureKit error -3811 prevented UI inspection; the visible badge and final bundled-game check remain pending.
