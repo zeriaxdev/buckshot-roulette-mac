@@ -8,6 +8,10 @@ func _run():
 	var patches = load(args[1])
 	if not patches.patch_timer_loop("changed source", "delay", 2).is_empty():
 		printerr("Unexpected patch acceptance"); quit(1); return
+	var scene_sample := "\tget_tree().change_scene_to_file(\"res://main.tscn\")\n# get_tree().change_scene_to_file(\"res://old.tscn\")"
+	var patched_sample: String = patches.patch_scene_changes(scene_sample, 1)
+	if not scene_switches_fixed(patched_sample, 1) or scene_switches_fixed(scene_sample, 1):
+		printerr("Scene patch detection counted comments or missed a live call"); quit(1); return
 	for kind in ["BlinkerBranch", "BpmLight", "PartitionBranch"]:
 		var text := FileAccess.get_file_as_string(args[0].path_join("scripts/" + kind + ".gd"))
 		var expected := 1 if kind == "PartitionBranch" else 2
@@ -59,7 +63,7 @@ func _run():
 		for path in patches.SCENE_SWITCHES:
 			var full_path := args[0].path_join(path)
 			var original := FileAccess.get_file_as_string(full_path)
-			var already_fixed: bool = original.count("get_tree().change_scene_to_file.call_deferred(") == patches.SCENE_SWITCHES[path] and not original.contains("get_tree().change_scene_to_file(")
+			var already_fixed := scene_switches_fixed(original, patches.SCENE_SWITCHES[path])
 			var fixed: String = original if already_fixed else patches.patch_scene_changes(original, patches.SCENE_SWITCHES[path])
 			if fixed.is_empty():
 				printerr("Scene patch did not match: ", path); quit(1); return
@@ -67,3 +71,11 @@ func _run():
 			file.store_string(fixed); file.close()
 	print("SCENARIO PASS lifecycle")
 	quit()
+
+func scene_switches_fixed(text: String, expected: int) -> bool:
+	var fixed := 0
+	for line in text.split("\n"):
+		var code := line.strip_edges()
+		if code.begins_with("get_tree().change_scene_to_file("): return false
+		if code.begins_with("get_tree().change_scene_to_file.call_deferred("): fixed += 1
+	return fixed == expected
