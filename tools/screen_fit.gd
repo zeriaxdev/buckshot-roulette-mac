@@ -21,6 +21,10 @@ var _top := 0.0  # notch row, in game pixels, kept black
 var _bar: ColorRect
 var _candidates := []  # plain colour/image layers not yet matched as full-screen
 var _recheck := 0.0
+var _game_windowed := true
+var _notch_fullscreen := false
+var _switching_window := false
+var _windowed_rect: Rect2i
 
 
 func _test_scene() -> void:
@@ -65,7 +69,9 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().root.size_changed.connect(_apply)
 	get_tree().root.titlebar_changed.connect(_apply)
+	_game_windowed = get_tree().root.mode < Window.MODE_FULLSCREEN
 	_apply()
+	_sync_window.call_deferred()
 
 
 func _save() -> void:
@@ -74,13 +80,83 @@ func _save() -> void:
 		out.store_string(JSON.stringify({"fill_screen": fill, "include_notch": include_notch, "fps_limit": fps_limit, "show_fps": show_fps}))
 		out.close()
 	_apply()
+	_sync_window.call_deferred()
+
+
+func set_game_windowed(value: bool) -> void:
+	var root := get_tree().root
+	if _game_windowed and not value and not _notch_fullscreen and root.mode == Window.MODE_WINDOWED:
+		_windowed_rect = Rect2i(root.position, root.size)
+	_game_windowed = value
+	_sync_window.call_deferred()
+
+
+func _wait_window_transition() -> bool:
+	await get_tree().process_frame
+	for _i in 80:
+		if not OS.has_environment("BUCKSHOT_WINDOW_TRANSITION"): return true
+		await get_tree().create_timer(0.05, true, false, true).timeout
+		if not is_inside_tree(): return false
+	push_warning("macOS fullscreen transition timed out")
+	return false
+
+
+func _sync_window() -> void:
+	if _switching_window or not is_inside_tree(): return
+	if OS.has_environment("BUCKSHOT_WINDOW_TRANSITION"):
+		_switching_window = true
+		var finished := await _wait_window_transition()
+		_switching_window = false
+		if finished: _sync_window.call_deferred()
+		return
+	var root := get_tree().root
+	var wanted := fill and include_notch and not _game_windowed
+	if wanted and not GDExtensionManager.is_extension_loaded("res://mac/fullscreen.gdextension"):
+		push_warning("Notch fullscreen helper is not loaded")
+		return
+	if wanted == _notch_fullscreen:
+		if not wanted:
+			_switching_window = true
+			root.mode = Window.MODE_WINDOWED if _game_windowed else Window.MODE_EXCLUSIVE_FULLSCREEN
+			await _wait_window_transition()
+			_switching_window = false
+			if fill and include_notch and not _game_windowed: _sync_window.call_deferred()
+		return
+	_switching_window = true
+	if wanted:
+		if root.mode >= Window.MODE_FULLSCREEN:
+			root.mode = Window.MODE_WINDOWED
+			if not await _wait_window_transition():
+				_switching_window = false
+				return
+			if not is_inside_tree(): return
+			if not (fill and include_notch and not _game_windowed):
+				_switching_window = false
+				_sync_window.call_deferred()
+				return
+		# Native Space transitions can return a maximized rectangle; retain the user's normal window.
+		if not _windowed_rect.has_area(): _windowed_rect = Rect2i(root.position, root.size)
+		_notch_fullscreen = true
+		root.borderless = true
+		root.position = DisplayServer.screen_get_position(root.current_screen) + Vector2i(2, 0)
+		root.size = DisplayServer.screen_get_size(root.current_screen)
+		root.position = DisplayServer.screen_get_position(root.current_screen)
+	else:
+		_notch_fullscreen = false
+		root.borderless = false
+		# Godot 4.4 skips resizing a window equal to the usable-screen rectangle; move it first.
+		root.position = _windowed_rect.position + Vector2i(2, 0)
+		root.size = _windowed_rect.size
+		root.position = _windowed_rect.position
+		root.mode = Window.MODE_WINDOWED if _game_windowed else Window.MODE_EXCLUSIVE_FULLSCREEN
+		await _wait_window_transition()
+	_switching_window = false
+	_apply()
+	if (fill and include_notch and not _game_windowed) != _notch_fullscreen: _sync_window.call_deferred()
 
 
 func _apply() -> void:
 	var root := get_tree().root
-	var extend := fill and include_notch and root.mode >= Window.MODE_FULLSCREEN
-	if root.extend_to_title != extend:
-		root.extend_to_title = extend
 	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND if fill else Window.CONTENT_SCALE_ASPECT_KEEP
 	# the scaled view rarely matches the window to the pixel (960x602 -> 1896 of 1898 px):
 	# the leftover row shows the clear colour, the game's grey, as a thin line
@@ -210,6 +286,11 @@ func _process(delta: float) -> void:
 	# a second camera (MouseRaycast), and both must project the same way. Done every frame
 	# because some scenes animate the camera's angle.
 	var root := get_tree().root
+	if _notch_fullscreen and root.mode == Window.MODE_WINDOWED:
+		var screen_size := DisplayServer.screen_get_size(root.current_screen)
+		var screen_position := DisplayServer.screen_get_position(root.current_screen)
+		if root.size != screen_size: root.size = screen_size
+		if root.position != screen_position: root.position = screen_position
 	for cam in root.find_children("*", "Camera3D", true, false):
 		if cam.get_viewport() != root:
 			continue  # e.g. the globe in the lobby renders in its own viewport

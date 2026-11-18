@@ -35,6 +35,11 @@ func fail(msg: String):
 	printerr("REPACK ERROR: " + msg)
 	quit(1)
 
+static func patch_window_modes(text: String) -> String:
+	if text.count("DisplayServer.window_set_mode(") != 2 or text.contains("func _mac_window_mode"):
+		return ""
+	return text.replace("DisplayServer.window_set_mode(", "_mac_window_mode(") + "\nfunc _mac_window_mode(mode):\n\tvar helper = get_node_or_null(\"/root/MacScreenFit\")\n\tif helper: helper.set_game_windowed(mode == DisplayServer.WINDOW_MODE_WINDOWED)\n\telse: DisplayServer.window_set_mode(mode)\n"
+
 func _initialize():
 	var a := OS.get_cmdline_user_args()
 	if a.size() != 3: return fail("usage: OUT.pck GAME.exe EXTRAS_DIR")
@@ -70,6 +75,11 @@ func _initialize():
 		cache = cache.replace('"icon": "",', '"icon": "",\n"is_abstract": false,\n"is_tool": false,')
 	write(extras, ".godot/global_script_class_cache.cfg", cache)
 	for f in [item, ".godot/global_script_class_cache.cfg"]: skip[f] = true
+	var options_path := "scripts/OptionsManager.gd"
+	var options := patch_window_modes(FileAccess.get_file_as_string("res://" + options_path))
+	if options.is_empty(): return fail("unsupported window settings: " + options_path)
+	write(extras, options_path, options)
+	skip[options_path] = true
 	# Fill Screen: the mouse ray must use the same camera angle the picture uses, and the
 	# camera transitions must start from the game's own angle, not the converted one.
 	var ray_anchor := "\tvar start = project_ray_origin(mouse)\n\tvar end = project_position(mouse, 20000)\n"

@@ -55,3 +55,9 @@ A separate test copy reproduces the rectangular dark seam at the player-facing t
 The fixture still reports resource-cleanup warnings at exit; this is not a clean full-game shutdown test. Physical DualShock input and the actual display's notch remain manual checks. Private screenshots and game fixtures are not included in the repository.
 
 The FPS row now keeps its label on the left and its value in the right-hand control column. The real-menu fixture checks 60, 120 and UNLIMITED, verifies each rendered right edge matches the checkbox column, and keeps the whole row clickable. An offscreen Metal preview was inspected.
+
+## Full-display notch backend
+
+Native fullscreen on this M5 exposes 3024×1898 of the 3024×1964 display. The title-bar flag and a native fullscreen content-size callback do not make the reserved row available. Include Notch Area therefore uses a borderless window covering the display, plus a small asset-free native helper for active-app presentation and Space-transition completion. `OptionsManager.gd` delegates its two window-mode calls to the Mac helper, preserving the original UI controls and their settings.
+
+`python3 scripts/test_native_window.py` creates a synthetic test app with no game data or Steam connection. Both Compatibility and Forward+/Metal runs pass on/off/on, rapid toggles, helper startup during a native transition, colored pixels in both sides of the top row, and exact restoration of the original 960×540 window. Included mode measures position (0,0), size 3024×1964; excluded mode returns to position (0,66), size 3024×1898. The native helper's active-app flags hide the menu bar and Dock; no system preference is changed. A compositor screenshot was unavailable, so these checks establish actual window bounds and rendered viewport pixels rather than a photograph of the physical notch. Intel hardware and packaged-game validation remain pending.
