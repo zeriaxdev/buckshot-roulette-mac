@@ -46,6 +46,13 @@ compatibility_minimum = "4.1"
 macos.release = "osx/libgodotsteam.macos.template_release.framework"
 macos.debug = "osx/libgodotsteam.macos.template_release.framework"
 '''
+FULLSCREEN_EXTENSION = '''[configuration]
+entry_symbol = "buckshot_fullscreen_init"
+compatibility_minimum = "4.4"
+
+[libraries]
+macos = "osx/BuckshotFullscreen.framework"
+'''
 LAUNCHER = '''#!/bin/sh
 # Start the game the way Steam starts its own games, so the in-game overlay (Shift+Tab,
 # Invite Friends) works: same environment, Metal hook on, overlay library loaded.
@@ -269,7 +276,7 @@ def main(argv: list[str] | None = None) -> int:
         extras = work / "extras"
         (extras / ".godot").mkdir(parents=True)
         (extras / "addons/godotsteam").mkdir(parents=True)
-        (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\n")
+        (extras / ".godot/extension_list.cfg").write_text("res://addons/godotsteam/godotsteam.gdextension\nres://mac/fullscreen.gdextension\n")
         (extras / "addons/godotsteam/godotsteam.gdextension").write_text(GDEXTENSION)
         if not icon:  # Mac-style icon made from the game's own icon in your copy
             png, iconset = work / "icon.png", work / "icon.iconset"
@@ -284,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
             subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(icon)], check=True)
         # Mac helper (Dock icon, experimental 16:10 fill), started by the patched Steam.gd
         (extras / "mac").mkdir()
+        (extras / "mac/fullscreen.gdextension").write_text(FULLSCREEN_EXTENSION)
         shutil.copy2(ROOT / "tools/screen_fit.gd", extras / "mac/screen_fit.gd")
         shutil.copy2(icon, extras / "mac_icon.icns")
         (extras / "override.cfg").write_text('[rendering]\nrendering_device/driver.macos="metal"\n')
@@ -301,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
         for exe in ("launch", NAME):
             (app / "Contents/MacOS" / exe).chmod(0o755)
         shutil.copytree(framework, app / "Contents/Frameworks" / FRAMEWORK, symlinks=True)
+        shutil.copytree(ROOT / "tools/native/BuckshotFullscreen.framework", app / "Contents/Frameworks/BuckshotFullscreen.framework")
         if icon:
             shutil.copy2(icon, app / "Contents/Resources/icon.icns")
         (app / "Contents/PkgInfo").write_text("APPL????")

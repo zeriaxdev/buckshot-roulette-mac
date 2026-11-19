@@ -31,7 +31,9 @@ func _run():
 	var native_text: Label = menu.parent_audiovideo.get_node("text_greyscale death")
 	var original_position := native_text.position
 	var original_alpha := native_text.modulate.a
+	DirAccess.remove_absolute(OS.get_user_data_dir().path_join("mac_screen.json"))
 	var helper = load(OS.get_cmdline_user_args()[0]).new()
+	if helper.fill or helper.include_notch: return fail("Experimental display options are not off by default")
 	root.add_child.call_deferred(helper)
 	await helper.ready
 	for _i in 4: await process_frame
@@ -47,6 +49,15 @@ func _run():
 		return fail("MAC did not open with controller focus")
 	if native_text.position != original_position or native_text.modulate.a != original_alpha:
 		return fail("Cloning changed the original Audio/Video label")
+	var notch = page.get_node("notch_button")
+	if helper.fill or helper.include_notch or not notch.disabled or page.get_node("notch_label").self_modulate.a > 0.4:
+		return fail("Fresh settings must disable and grey out notch mode")
+	notch.pressed.emit()
+	if helper.include_notch: return fail("Disabled notch row accepted a press")
+	if first.find_valid_focus_neighbor(SIDE_BOTTOM) == notch: return fail("Controller focused a disabled notch row")
+	first.pressed.emit()
+	if notch.disabled or page.get_node("notch_label").self_modulate.a != 1.0:
+		return fail("Fill Screen did not enable the notch row")
 	var focus = first
 	var visited := []
 	while focus not in visited:
@@ -54,8 +65,6 @@ func _run():
 		visited.append(focus)
 		focus = focus.find_valid_focus_neighbor(SIDE_BOTTOM)
 	if visited.size() != 5 or focus != first: return fail("Not all five MAC controls are reachable")
-	var fill_before: bool = helper.fill
-	first.pressed.emit()
 	var notch_before: bool = helper.include_notch
 	page.get_node("notch_button").pressed.emit()
 	if helper.include_notch == notch_before: return fail("Notch checkbox did not toggle exactly once")
@@ -63,8 +72,8 @@ func _run():
 	if not saved is Dictionary or saved.get("include_notch") != helper.include_notch:
 		return fail("Notch preference was not saved")
 	page.get_node("notch_button").pressed.emit()
-	if helper.fill == fill_before: return fail("Fill checkbox did not toggle exactly once")
 	first.pressed.emit()
+	if helper.fill or not notch.disabled: return fail("Fill Screen off did not disable notch mode again")
 	helper.fps_limit = 0
 	for expected in [60, 120, 0]:
 		page.get_node("fps_limit_button").pressed.emit()
@@ -95,7 +104,7 @@ func _run():
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(OS.get_cmdline_user_args()[1])
-	print("PASS Mac menu: top alignment, five controls, saved notch toggle, native settings isolation, controller focus and both returns")
+	print("PASS Mac menu: both defaults off, dependent notch state, disabled input/focus, top alignment, FPS values, saved toggle and both returns")
 	scene.queue_free(); helper.queue_free()
 	await process_frame
 	await process_frame
