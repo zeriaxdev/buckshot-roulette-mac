@@ -35,6 +35,34 @@ func fail(msg: String):
 	printerr("REPACK ERROR: " + msg)
 	quit(1)
 
+static func patch_timer_loop(text: String, delay: String, expected: int) -> String:
+	var anchor := "\t\tawait get_tree().create_timer(%s, false).timeout\n" % delay
+	if text.count(anchor) != expected:
+		return ""
+	# Scene changes detach nodes before freeing them; another timer can resume in that gap.
+	return text.replace(anchor, anchor + "\t\tif not is_inside_tree(): return\n")
+
+const SCENE_SWITCHES := {
+	"scripts/TempDeathScreen.gd": 1, "scripts/DeathManager.gd": 3,
+	"scripts/HeavenManager.gd": 1, "scripts/UserExit.gd": 1,
+	"scripts/ResetManager.gd": 1, "scripts/GameOverManager.gd": 1,
+	"scripts/DonUnlockManager.gd": 1, "scripts/MenuManager.gd": 2,
+	"scripts/EndingManager.gd": 1, "multiplayer/scripts/MP_LobbyController.gd": 1,
+	"multiplayer/scripts/global scripts/MP_InteractionIntermediary.gd": 1,
+	"multiplayer/scripts/global scripts/MP_CommandLineChecker.gd": 1,
+	"multiplayer/scripts/global scripts/MP_LobbyUI.gd": 1,
+}
+
+static func patch_scene_changes(text: String, expected: int) -> String:
+	var lines := text.split("\n")
+	var count := 0
+	for i in lines.size():
+		if lines[i].strip_edges().begins_with("get_tree().change_scene_to_file("):
+			lines[i] = lines[i].replace("change_scene_to_file(", "change_scene_to_file.call_deferred(")
+			count += 1
+	# Defer detachment until the timer pass ends, and never switch inside a scene's _ready.
+	return "\n".join(lines) if count == expected else ""
+
 func _initialize():
 	var a := OS.get_cmdline_user_args()
 	if a.size() != 3: return fail("usage: OUT.pck GAME.exe EXTRAS_DIR")
@@ -70,6 +98,16 @@ func _initialize():
 		cache = cache.replace('"icon": "",', '"icon": "",\n"is_abstract": false,\n"is_tool": false,')
 	write(extras, ".godot/global_script_class_cache.cfg", cache)
 	for f in [item, ".godot/global_script_class_cache.cfg"]: skip[f] = true
+	for loop in [["scripts/BlinkerBranch.gd", "delay", 2], ["scripts/BpmLight.gd", "delay", 2], ["scripts/PartitionBranch.gd", "d", 1]]:
+		var fixed := patch_timer_loop(FileAccess.get_file_as_string("res://" + loop[0]), loop[1], loop[2])
+		if fixed.is_empty(): return fail("unsupported timer loop: " + loop[0])
+		write(extras, loop[0], fixed)
+		skip[loop[0]] = true
+	for path in SCENE_SWITCHES:
+		var fixed := patch_scene_changes(FileAccess.get_file_as_string("res://" + path), SCENE_SWITCHES[path])
+		if fixed.is_empty(): return fail("unsupported scene transitions: " + path)
+		write(extras, path, fixed)
+		skip[path] = true
 	if packer.pck_start(a[0]) != OK: return fail("cannot create " + a[0])
 	walk("res://", "", true)
 	walk(extras, "", false)
