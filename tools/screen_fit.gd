@@ -204,6 +204,8 @@ func _on_node_added(node: Node) -> void:
 func _fit(node: Node) -> void:
 	if node is MeshInstance3D:
 		_repair_table_mesh(node)
+	elif node is AnimationPlayer:
+		_repair_pill_light(node)
 	elif node is CanvasLayer and not node.has_meta("mac_own"):
 		if not node.has_meta("mac_offset"):
 			node.set_meta("mac_offset", node.offset)
@@ -213,6 +215,20 @@ func _fit(node: Node) -> void:
 		if not node in _candidates:
 			_candidates.append(node)
 		_fit_overlay.call_deferred(node)  # after the game has laid it out
+
+
+func _repair_pill_light(player: AnimationPlayer) -> void:
+	if not player.has_animation("camera check pills"):
+		return
+	var animation := player.get_animation("camera check pills")
+	var range_track := ^"../backroom main parent/light main door3 LS:omni_range"
+	var tracks: Array[int] = []
+	for i in animation.get_track_count():
+		if animation.track_get_type(i) == Animation.TYPE_VALUE and animation.track_get_path(i) == range_track and animation.track_is_enabled(i):
+			tracks.append(i)
+	if tracks.size() == 2:
+		# Godot 4.4 blends the duplicate range tracks. Keep the track 4.1 applied last.
+		animation.remove_track(tracks[0])
 
 
 func _repair_table_mesh(node: MeshInstance3D) -> void:
