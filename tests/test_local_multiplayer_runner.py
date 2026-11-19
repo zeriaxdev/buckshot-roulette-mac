@@ -13,7 +13,7 @@ class LocalMultiplayerChecks(unittest.TestCase):
                 patch('scripts.test_local_multiplayer.run_local', return_value=0) as local, \
                 patch('scripts.test_multiplayer.launch') as production:
             self.assertEqual(main(), 0)
-            local.assert_called_once_with(Path('/Applications/Buckshot Roulette.app'), smoke=False)
+            local.assert_called_once_with((Path.home() / 'Applications/Buckshot Roulette.app').resolve(), smoke=False)
             production.assert_not_called()
 
     def test_automatic_mode_propagates_failure(self):
