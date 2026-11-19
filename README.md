@@ -1,6 +1,6 @@
 # Buckshot Roulette for macOS
 
-Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac, built from your own Steam copy. It renders with Metal, and Steam achievements, the Shift+Tab overlay, Invite Friends, online lobbies and PlayStation controllers all work.
+Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively on your Mac with Metal, built from your own Steam copy. Online lobbies and an achievement have been observed; a full multiplayer match, overlay/invitations and physical controller interaction still need verification.
 
 > [!IMPORTANT]
 > **Steam version only.** You need to own Buckshot Roulette on Steam. This repo doesn't contain the game and doesn't download it. It turns the copy you already own into a Mac app. It's not a way to play without buying it, so please don't ask for builds or game files. Don't have it yet? [Get it on Steam](https://store.steampowered.com/app/2835570/).
@@ -59,7 +59,7 @@ The builder preserves the shipped assets and applies these additions and compati
 | `override.cfg` | Picks the Metal renderer. |
 | A Mac-style icon | Made from the game's own icon in your copy, so it isn't shipped here. |
 | A small Mac helper script | Keeps that icon in the Dock while the game runs (the game would swap in its raw PNG). |
-| A small `launch` script | Starts the game with the same environment Steam gives its own games, which is what makes Shift+Tab and Invite Friends work. |
+| A small `launch` script | Sets the Steam environment and Metal overlay hook. Shift+Tab and Invite Friends still require an end-to-end check. |
 | A **MAC** page in Options | First entry in Options (the other entries move down one row, lined up with the main menu). It has **FILL SCREEN 16:10 \*** (experimental, off by default), **FPS LIMIT** (unlimited, 60 or 120) and **SHOW FPS**, built from copies of the game's own menu items. Fill Screen fills a 16:10 screen instead of showing black bars: menus stay centred, the camera keeps its 16:9 width and shows a little more above and below. Saved in `mac_screen.json` next to the game's settings. |
 
 The MAC entry and its page are the only menu changes. Its settings start at the top like Audio/Video, with aligned labels and an experimental INCLUDE NOTCH AREA checkbox. It is off by default and takes effect with Fill Screen in fullscreen. Turning it on uses borderless fullscreen to draw beside the camera housing; turning it off restores native fullscreen. The menu bar and Dock are hidden only while the full-display game window is active. The game's Windowed/Fullscreen controls still work. It uses the game's own controls, with explicit controller focus and return paths. The camera, raycast and window-mode scripts receive small compatibility patches. Game rules and shipped scene assets are preserved.
@@ -86,6 +86,8 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - **Anything else**: open an issue and attach `~/Library/Caches/buckshot-roulette-mac/build.log`.
 
 ## Known limits
+
+To try the multiplayer table alone, double-click **Test Multiplayer.command**: your seat is MIKE and three scripted seats act automatically. It opens a separate local session with temporary saves and no Steam networking or achievements. See [solo testing and the real Steam checklist](MULTIPLAYER_TESTING.md) for coverage and commands. It never closes your normal game.
 
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
