@@ -42,7 +42,7 @@ def run(godot, project, script, args, log, timeout=45, audio_driver='Dummy'):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--app', type=Path, default=Path('/Applications/Buckshot Roulette.app'))
+    parser.add_argument('--app', type=Path, default=Path.home() / 'Applications/Buckshot Roulette.app')  # where the installer puts it
     parser.add_argument('--godot', type=Path, default=DEFAULT_GODOT)
     parser.add_argument('--scenario', choices=['lifecycle', 'death', 'all'], default='all')
     parser.add_argument('--repeat', type=int, default=1)

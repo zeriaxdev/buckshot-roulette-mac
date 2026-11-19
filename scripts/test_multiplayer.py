@@ -38,7 +38,7 @@ def launch(app, log):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--app', type=Path, default=Path('/Applications/Buckshot Roulette.app'))
+    parser.add_argument('--app', type=Path, default=Path.home() / 'Applications/Buckshot Roulette.app')  # where the installer puts it
     parser.add_argument('--local', action='store_true', help='play locally with three scripted seats; no second account needed')
     parser.add_argument('--smoke', action='store_true', help='run a bounded automatic local gameplay check')
     args = parser.parse_args()
