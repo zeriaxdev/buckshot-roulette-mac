@@ -47,7 +47,7 @@ To remove it, quit Steam and run `python3 steam_entry.py remove`. Run both from 
 
 There are no automatic updates. The app is built from your own game files, so nothing gets downloaded or replaced in the background.
 
-- **New version of this port:** download the new ZIP and run its installer. Answer `y` to replace the app. Your old app stays until the new one is built and checked.
+- **New version of this port:** double-click **Install Buckshot Roulette.command** again. Since 1.1.0-beta.4 it checks GitHub first, and when a newer version is out it offers to get it: press Enter to accept. Answer `y` to replace the app. Your old app stays until the new one is built and checked. Older versions don't check, so download the new ZIP once and run its installer.
 - **Game update on Steam:** paste the same console line again (`download_depot 2835570 2835572`), wait for it to finish, then run the installer.
 
 Your saves are never touched.
