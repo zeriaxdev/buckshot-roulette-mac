@@ -4,7 +4,7 @@
 
 This uses the game's existing four-seat test mode with your installed game data. It uses temporary saves, does not initialize Steam, awards no achievements and never changes your installed app or normal progress. Close the test window to finish; temporary game copies and test saves are removed, while logs remain private under `local/multiplayer-tests/`.
 
-It can exercise the multiplayer scene, item distribution, shots, turn changes and deaths. It does **not** test independent client synchronization, Steam matchmaking, invitations or Internet transport. The scripted seats currently shoot randomly and do not use items strategically.
+It can exercise the multiplayer scene, item distribution, shots, turn changes and deaths. It does **not** test independent client synchronization, Steam matchmaking, invitations or Internet transport. The scripted seats choose a living target when firing (including themselves) and do not use items strategically. The local fixture selects the game's English translations explicitly; numeric result IDs are the original developer mode's placeholder identities.
 
 Terminal equivalents:
 
@@ -13,7 +13,7 @@ python3 scripts/test_multiplayer.py --local
 python3 scripts/test_multiplayer.py --smoke
 ```
 
-The second command runs a bounded automatic test with all four seats scripted and a short fixed setup. A passing result requires multiple shots and a death; simply closing the visible test is not reported as a passed match.
+The second command runs a bounded automatic test with all four seats scripted and a short fixed setup. A passing result requires three shots and three deaths; simply closing the visible test is not reported as a passed match. Each bot shot logs its timestamp, target health and eligible live seats as `LOCAL_SHOT` JSON.
 
 ## Real Steam check
 
