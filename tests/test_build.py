@@ -24,6 +24,25 @@ class BuildChecks(unittest.TestCase):
         self.assertTrue(all("$" not in str(v) for v in meta.values()))
 
 
+class PromptChecks(unittest.TestCase):
+    def test_keys_typed_before_the_question_are_ignored(self):
+        import os, pty, subprocess
+        master, slave = pty.openpty()
+        code = f"import sys; sys.path.insert(0, {str(Path(build.__file__).parent)!r}); import build; print(repr(build.ask('Q? ')))"
+        child = subprocess.Popen([sys.executable, "-c", code], stdin=slave, stdout=slave, stderr=slave)
+        os.close(slave)
+        os.write(master, b"me")  # stray input that is already waiting before the question
+        out = b""
+        while b"Q? " not in out:
+            out += os.read(master, 1024)
+        os.write(master, b"y\n")
+        while b"'\r\n" not in out.split(b"Q? ", 1)[1].split(b"y\r\n", 1)[-1]:
+            out += os.read(master, 1024)
+        child.wait(timeout=10)
+        os.close(master)
+        self.assertIn(b"'y'", out, out)
+
+
 class SetupChecks(unittest.TestCase):
     def test_existing_game_skips_console(self):
         with patch("build.find_depot_exe", return_value=Path("owned.exe")), patch("build.subprocess.run") as opened:
