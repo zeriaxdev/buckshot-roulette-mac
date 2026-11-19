@@ -246,6 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--output", type=Path, default=Path.home() / "Applications" / f"{NAME}.app")
     p.add_argument("--replace", action="store_true", help="replace an existing app after the new build verifies; keep the old app in Trash")
     p.add_argument("--i-own-the-game", action="store_true", help="confirm you own the game on Steam (asked otherwise)")
+    p.add_argument("--steam-play", action="store_true", help="also make Steam's own entry show Play for this app (asked otherwise; see steam_entry.py)")
     a = p.parse_args(argv)
     if sys.platform != "darwin":
         raise ValueError("This builder runs on macOS")
@@ -329,7 +330,29 @@ def main(argv: list[str] | None = None) -> int:
         run(["codesign", "--verify", "--deep", "--strict", str(app)], log)
         install_app(app, out, replace_existing)
     print(f"\nDone: {out}\nKeep Steam running when you play. This app contains the game: don't share it.")
+    offer_steam_play(out, a.steam_play)
     return 0
+
+
+def offer_steam_play(app: Path, yes: bool) -> None:
+    """Optional last step. The build above never touches Steam; this only runs when asked."""
+    import steam_entry
+    if steam_entry.status() == f"on: Play starts {app}":
+        print("Steam's Play button already starts this app.")
+        return
+    if not yes and ask("\nOptional, experimental: make Steam's Buckshot Roulette entry show Play and start this app?\n"
+                       "It edits only this game's entry in Steam's local cache. Undo: python3 steam_entry.py remove [y/N] ").lower() not in ("y", "yes"):
+        return
+    while steam_entry.steam_running():
+        if not sys.stdin.isatty():
+            print("Steam is running, so the Play button was skipped. Quit Steam, then run: python3 steam_entry.py add")
+            return
+        if ask("Quit Steam completely (Steam → Quit Steam), then press Enter. Type s to skip: ").lower() == "s":
+            return
+    try:
+        print(steam_entry.add(app) + ". Open Steam: Buckshot Roulette now shows Play.")
+    except steam_entry.SteamEntryError as error:
+        print(f"Play button skipped: {error}. The app still opens from Applications.")
 
 
 if __name__ == "__main__":
