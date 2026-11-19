@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import json
+import os
 import shutil
 import subprocess
 import sys
@@ -21,7 +23,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VERSION = "1.1.0-beta.3"
+VERSION = "1.1.0-beta.4"
 ROOT = Path(__file__).resolve().parent
 CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
 APP_ID, DEPOT_ID = "2835570", "2835572"
@@ -238,6 +240,64 @@ def install_app(app: Path, out: Path, replace_existing: bool) -> None:
             print(f"Moved the old app to the Trash: {backup.name}")
 
 
+RELEASES = "https://api.github.com/repos/zeriaxdev/buckshot-roulette-mac/releases?per_page=20"
+
+
+def version_key(version: str) -> tuple:
+    """1.1.0-beta.3 -> ((1, 1, 0), 0, 3). A final 1.1.0 sorts after all its betas."""
+    main, _, pre = version.lstrip("v").partition("-")
+    return tuple(int(x) for x in main.split(".")), 0 if pre else 1, int(pre.rsplit(".", 1)[-1]) if pre else 0
+
+
+def newest_release() -> tuple[str, str] | None:
+    """(version, ZIP URL) of the newest published release, or None when GitHub can't be reached."""
+    req = urllib.request.Request(RELEASES, headers={"Accept": "application/vnd.github+json", "User-Agent": "buckshot-roulette-mac-installer"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            releases = json.load(r)
+    except (OSError, ValueError):
+        return None
+    best = None
+    for rel in releases:
+        version = str(rel.get("tag_name", "")).lstrip("v")
+        url = next((x.get("browser_download_url") for x in rel.get("assets", [])
+                    if x.get("name") == f"buckshot-roulette-mac-{version}.zip"), None)
+        try:
+            key = version_key(version)
+        except ValueError:
+            continue
+        if url and not rel.get("draft") and (best is None or key > best[0]):
+            best = (key, version, url)
+    return best[1:] if best else None
+
+
+def offer_update(args: list[str]) -> None:
+    """If a newer release is out, offer to download it and run its installer instead of this one."""
+    latest = newest_release()
+    if not latest or version_key(latest[0]) <= version_key(VERSION):
+        return
+    version, url = latest
+    if not sys.stdin.isatty():
+        print(f"Version {version} is out: https://github.com/zeriaxdev/buckshot-roulette-mac/releases\n")
+        return
+    if ask(f"Version {version} is out (this installer is {VERSION}). Get it and install that instead? [Y/n] ").lower() in ("n", "no"):
+        print()
+        return
+    target = CACHE / "updates"
+    try:
+        print(f"  downloading {url.rsplit('/', 1)[-1]}", flush=True)
+        with urllib.request.urlopen(url, timeout=60) as r:
+            data = r.read()
+        shutil.rmtree(target, ignore_errors=True)
+        zipfile.ZipFile(io.BytesIO(data)).extractall(target)
+        new = next(target.glob("*/build.py"))
+    except (OSError, ValueError, StopIteration, zipfile.BadZipFile) as error:
+        print(f"Couldn't get {version} ({error}). Continuing with {VERSION}.\n")
+        return
+    print(f"Starting the {version} installer.\n", flush=True)
+    os.execv(sys.executable, [sys.executable, str(new), *args, "--no-update-check"])
+
+
 def main(argv: list[str] | None = None) -> int:
     import plistlib
     p = argparse.ArgumentParser(description=__doc__)
@@ -247,11 +307,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--replace", action="store_true", help="replace an existing app after the new build verifies; keep the old app in Trash")
     p.add_argument("--i-own-the-game", action="store_true", help="confirm you own the game on Steam (asked otherwise)")
     p.add_argument("--steam-play", action="store_true", help="also make Steam's own entry show Play for this app (asked otherwise; see steam_entry.py)")
+    p.add_argument("--no-update-check", action="store_true", help="don't ask GitHub whether a newer version of this installer is out")
     a = p.parse_args(argv)
     if sys.platform != "darwin":
         raise ValueError("This builder runs on macOS")
     print(f"buckshot-roulette-mac {VERSION}\nBuilds a Mac app from your own Steam copy of {NAME}. It contains and downloads none of the game.\n"
           f"Buy it: https://store.steampowered.com/app/{APP_ID}/\n")
+    if not a.no_update_check:
+        offer_update(sys.argv[1:] if argv is None else argv)
     if not a.i_own_the_game and ask(f"Do you own {NAME} on Steam? [y/N] ").lower() not in ("y", "yes"):
         raise ValueError("This builder is only for people who own the game (add --i-own-the-game when not interactive)")
     game = locate_game(a.game)

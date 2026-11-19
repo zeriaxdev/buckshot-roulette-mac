@@ -104,7 +104,7 @@ class InstallChecks(unittest.TestCase):
         game.write_bytes(b"MZ")
         with patch("build.sys.platform", "darwin"), patch("build.CACHE", self.root / "cache"), patch("build.fetch", side_effect=RuntimeError("download failed")):
             with self.assertRaises(RuntimeError):
-                build.main(["--game", str(game), "--output", str(self.old), "--replace", "--i-own-the-game"])
+                build.main(["--game", str(game), "--output", str(self.old), "--replace", "--i-own-the-game", "--no-update-check"])
         self.assertEqual((self.old / "version").read_text(), "old")
 
     def test_failed_swap_restores_old_app(self):
@@ -122,6 +122,32 @@ class InstallChecks(unittest.TestCase):
         with self.assertRaises(ValueError):
             build.install_app(self.new, self.old, False)
         self.assertEqual((self.old / "version").read_text(), "old")
+
+
+class UpdateChecks(unittest.TestCase):
+    def releases(self, data):
+        import io, json
+        return patch("build.urllib.request.urlopen", return_value=io.BytesIO(json.dumps(data).encode()))
+
+    def test_version_order(self):
+        order = ["1.0.0", "1.1.0-beta.2", "1.1.0-beta.10", "1.1.0", "1.2.0-beta.1"]
+        self.assertEqual(sorted(order, key=build.version_key), order)
+
+    def test_picks_newest_release_with_its_zip(self):
+        zip_of = lambda v: [{"name": f"buckshot-roulette-mac-{v}.zip", "browser_download_url": f"https://x/{v}.zip"}]
+        data = [{"tag_name": "v1.1.0-beta.9", "draft": True, "assets": zip_of("1.1.0-beta.9")},
+                {"tag_name": "v1.1.0-beta.4", "assets": []},
+                {"tag_name": "v1.1.0-beta.3", "assets": zip_of("1.1.0-beta.3")},
+                {"tag_name": "v1.0.0", "assets": zip_of("1.0.0")}]
+        with self.releases(data):
+            self.assertEqual(build.newest_release(), ("1.1.0-beta.3", "https://x/1.1.0-beta.3.zip"))
+
+    def test_offline_or_not_newer_continues_without_asking(self):
+        with patch("build.urllib.request.urlopen", side_effect=OSError("offline")), patch("build.ask") as ask:
+            build.offer_update([])
+        with patch("build.newest_release", return_value=(build.VERSION, "https://x")), patch("build.ask") as ask2:
+            build.offer_update([])
+        ask.assert_not_called(); ask2.assert_not_called()
 
 
 if __name__ == "__main__":
