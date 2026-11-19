@@ -84,6 +84,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 - **"must be owned on Steam"**: start Steam, sign in to the account that owns the game, and open the game again.
 - **The builder says the game files aren't downloaded**: follow the Steam Console instructions in the installer. The builder looks in Steam's default library folder. If yours is elsewhere, pass `--game`.
 - **Checksum mismatch**: a download got damaged or changed. Delete `~/Library/Caches/buckshot-roulette-mac` and try again. If it keeps happening, open an issue.
+- **Terminal says `no such file or directory`** right after opening the installer: your shell asked its own question first (oh-my-zsh's update prompt does this) and swallowed part of the command. Double-click the installer again.
 - **Anything else**: open an issue and attach `~/Library/Caches/buckshot-roulette-mac/build.log`.
 
 ## Known limits
@@ -91,6 +92,7 @@ Anyone can edit a local build, so treat this as a courtesy check rather than DRM
 To try the multiplayer table alone, double-click **Test Multiplayer.command**: your seat is MIKE and three scripted seats act automatically. It opens a separate local session with temporary saves and no Steam networking or achievements. See [solo testing and the real Steam checklist](MULTIPLAYER_TESTING.md) for coverage and commands. It never closes your normal game.
 
 - Steam's library still shows **Install** instead of Play, because Valve ships no Mac version. Start the game from Applications. Steam still shows you as playing and tracks playtime and achievements.
+- Saves stay on this Mac. Buckshot Roulette doesn't use Steam Cloud on any platform, so progress from Windows doesn't carry over.
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
 - Fill Screen is experimental. Mac-page focus, all five controls and both return paths pass an isolated real-menu check; physical controller input still needs a play check. Checked on the menu, Options, the MAC page, the loading screen, the multiplayer lobby, bathroom and table; expanded death, win and heaven views remain unverified.

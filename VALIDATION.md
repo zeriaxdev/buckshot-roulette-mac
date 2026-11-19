@@ -59,6 +59,17 @@ It checks six representative table parts: geometry, materials and names survive,
 - Hold Escape exits a run.
 - The generated icon shows in Finder and stays in the Dock while playing.
 
+## Clean install from the main source ZIP, 19 November 2026
+
+macOS 27.0.1, Apple M5, Steam signed in to an owning account. Before the run, the Godot cache, the depot files, the app, the saves and the local Steam launch entry were all removed, so Steam listed Buckshot Roulette as Windows-only (**Install**, available for Windows and SteamOS). `.command` files opened in Terminal with the default zsh setup.
+
+- Downloaded **Code → Download ZIP** in a browser; the folder carried the downloaded-file quarantine flag. Terminal ran the installer without an Open Anyway prompt.
+- The ownership question accepted `y`. The installer printed the `download_depot` command, Steam downloaded the depot, and Enter continued the same run.
+- Cold cache: Godot 4.4.1 and GodotSteam downloaded and matched their hashes. The app was built, signed and installed in `~/Applications` about a minute after the ZIP download. Its game pack was byte-identical to a build from a development checkout.
+- Opened from Finder: the ownership check passed, the bathroom scene rendered, Shift+Tab opened the Steam overlay, and Steam showed the game as running and counted playtime. The library button stays **Install**, as documented.
+- `Test Multiplayer.command` opened the solo table from the installed app; scripted seats fired eight shots and turns passed between all four seats.
+- Found and fixed during this run: stray terminal input made `y` read as `mey` (#10), and the multiplayer test looked in `/Applications` instead of `~/Applications` (#11). A first double-click failed with "no such file or directory" because oh-my-zsh's update prompt consumed part of the command; a second double-click worked.
+
 ## Performance
 
 Main menu, 30 seconds each, same build:
