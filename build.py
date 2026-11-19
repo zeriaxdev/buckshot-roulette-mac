@@ -21,7 +21,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-VERSION = "1.1.0-beta.2"
+VERSION = "1.1.0-beta.3"
 ROOT = Path(__file__).resolve().parent
 CACHE = Path.home() / "Library/Caches/buckshot-roulette-mac"
 APP_ID, DEPOT_ID = "2835570", "2835572"

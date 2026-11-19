@@ -128,10 +128,13 @@ func _initialize():
 		["multiplayer/scripts/user scripts/MP_MouseRaycast.gd", ray_anchor, ray_fix, 1],
 		["scripts/CameraManager.gd", "currentFov = cam.fov", "currentFov = cam.get_meta(\"mac_fov\", cam.fov)", 3],
 		["multiplayer/scripts/user scripts/MP_CameraManager.gd", "currentFov = cam.fov", "currentFov = cam.get_meta(\"mac_fov\", cam.fov)", 1],
+		# Online play: GodotSteam 4.10 names a packet's sender "remote_steam_id". Reading the
+		# old name errors, so every packet from another player was dropped.
+		["multiplayer/scripts/MP_PacketManager.gd", "this_packet['steam_id_remote']", "this_packet['remote_steam_id']", 1],
 	]
 	for p in patches:
 		var text := FileAccess.get_file_as_string("res://" + p[0])
-		if text.count(p[1]) != p[3]: return fail("this game version differs from the one the Fill Screen patch targets: " + p[0])
+		if text.count(p[1]) != p[3]: return fail("this game version differs from the one these patches target: " + p[0])
 		write(extras, p[0], text.replace(p[1], p[2]))
 		skip[p[0]] = true
 	if packer.pck_start(a[0]) != OK: return fail("cannot create " + a[0])
