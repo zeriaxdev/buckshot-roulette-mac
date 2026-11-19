@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import termios
 import time
 import urllib.request
 import zipfile
@@ -184,6 +185,12 @@ def run(args: list[str], log: Path, cwd: Path | None = None) -> None:
 def ask(question: str) -> str:
     if not sys.stdin.isatty():
         return ""
+    try:
+        # Drop keys typed (or terminal replies leaked by the shell prompt) before the question:
+        # otherwise a stray "me" plus the user's "y" reads as "mey" and the answer is refused.
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    except termios.error:
+        pass
     try:
         return input(question).strip()
     except EOFError:
