@@ -108,6 +108,21 @@ func _initialize():
 		if fixed.is_empty(): return fail("unsupported scene transitions: " + path)
 		write(extras, path, fixed)
 		skip[path] = true
+	# Fill Screen: the mouse ray must use the same camera angle the picture uses, and the
+	# camera transitions must start from the game's own angle, not the converted one.
+	var ray_anchor := "\tvar start = project_ray_origin(mouse)\n\tvar end = project_position(mouse, 20000)\n"
+	var ray_fix := "\tvar mac = get_node_or_null(\"/root/MacScreenFit\") if is_inside_tree() else null\n\tvar ray_mouse = mouse\n\tif mac:\n\t\tmac._fit_camera(self)\n\t\tif controller_overriding: ray_mouse = mac.controller_ray_position(mouse, get_viewport().get_visible_rect().size)\n\tvar start = project_ray_origin(ray_mouse)\n\tvar end = project_position(ray_mouse, 20000)\n"
+	var patches := [
+		["scripts/MouseRaycast.gd", ray_anchor, ray_fix, 1],
+		["multiplayer/scripts/user scripts/MP_MouseRaycast.gd", ray_anchor, ray_fix, 1],
+		["scripts/CameraManager.gd", "currentFov = cam.fov", "currentFov = cam.get_meta(\"mac_fov\", cam.fov)", 3],
+		["multiplayer/scripts/user scripts/MP_CameraManager.gd", "currentFov = cam.fov", "currentFov = cam.get_meta(\"mac_fov\", cam.fov)", 1],
+	]
+	for p in patches:
+		var text := FileAccess.get_file_as_string("res://" + p[0])
+		if text.count(p[1]) != p[3]: return fail("this game version differs from the one the Fill Screen patch targets: " + p[0])
+		write(extras, p[0], text.replace(p[1], p[2]))
+		skip[p[0]] = true
 	if packer.pck_start(a[0]) != OK: return fail("cannot create " + a[0])
 	walk("res://", "", true)
 	walk(extras, "", false)

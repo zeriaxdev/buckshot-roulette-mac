@@ -86,3 +86,17 @@ A short test on one scene, not a benchmark.
 - An earlier direct-shot fixture passed 8 of 9 scenarios and crashed once in AudioDriverDummy/AudioServer. That native failure was distinct from the scene-tree timer crash and has not been explained.
 - The revised fixture first reaches a playable turn and disables SDK startup only in its extracted test copy. The stock 4.1.4 control passes all six outcomes. Godot 4.4.1 release passes 30 gameplay cases plus five lifecycle repetitions with no process failures; the earlier audio failure did not reproduce in this run. Native-audio checks and broader coverage are still pending.
 - Rendering and physical controller regressions are still separate checks.
+
+## Fill Screen controller projection
+
+`tests/screen_fit_rays.gd` compares actual Camera3D ray directions before and after expansion. The old code fails at 960x600; the coordinate fix passes 12 comparisons across 960x540, 960x600 and 1200x600. It exercises item-slot-like positions and the centre.
+
+Run with the cached Godot 4.4.1 editor, an empty project directory, `--headless --path EMPTY --script tests/screen_fit_rays.gd -- ABSOLUTE_PATH_TO_tools/screen_fit.gd`. A fresh local build with the updated single-player and multiplayer raycast patches signs and verifies. Physical DualShock item pickup still needs a play check.
+
+## Mac-page layout and navigation
+
+`tests/mac_menu.gd` runs against an extracted, SDK-disabled test fixture with a separate save directory. Deferred scene/helper attachment avoids the earlier fixture-only `Parent node is busy` error. The real menu passes opening MAC with controller focus, reaching all five controls, toggling each setting once without changing the original greyscale setting, and returning through both cancel and Return. Labels share a rendered left edge at the top of the page. An offscreen Metal screenshot was inspected; the inherited label pivots are reset so the text stays in its intended column. The notch checkbox toggles and saves its preference; the previous automatic-clearance note is removed. The app opts out of macOS safe-area compatibility scaling, and the helper extends fullscreen content when Fill Screen and Include Notch Area are both enabled. Actual fullscreen/notch coverage still needs a display check.
+
+The fixture still reports resource-cleanup warnings at exit; this is not a clean full-game shutdown test. Physical DualShock input and the actual display's notch remain manual checks. Private screenshots and game fixtures are not included in the repository.
+
+The FPS row now keeps its label on the left and its value in the right-hand control column. The real-menu fixture checks 60, 120 and UNLIMITED, verifies each rendered right edge matches the checkbox column, and keeps the whole row clickable. An offscreen Metal preview was inspected.
