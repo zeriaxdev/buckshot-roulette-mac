@@ -5,7 +5,7 @@ extends SceneTree
 
 const STEAM_GD := "scripts/Steam.gd"
 const ANCHOR := "\tInitializeSteam()\n"
-const CHECK := "\tInitializeSteam()\n\tif not (Steam.loggedOn() and Steam.isSubscribedApp(appid)):\n\t\tOS.alert(\"Buckshot Roulette must be owned on Steam, and Steam must be running and signed in.\", \"Buckshot Roulette\")\n\t\tget_tree().quit()\n\t\treturn\n\tif ResourceLoader.exists(\"res://mac/screen_fit.gd\"):\n\t\tget_tree().root.add_child.call_deferred(load(\"res://mac/screen_fit.gd\").new())\n"
+const CHECK := "\tInitializeSteam()\n\tif not (Steam.loggedOn() and Steam.isSubscribedApp(appid)):\n\t\tOS.alert(\"Buckshot Roulette must be owned on Steam, and Steam must be running and signed in.\", \"Buckshot Roulette\")\n\t\tget_tree().quit()\n\t\treturn\n\tvar discord = OS.get_executable_path().get_base_dir().path_join(\"discord-presence\")\n\tif FileAccess.file_exists(discord): OS.create_process(discord, [str(OS.get_process_id())])\n\tif ResourceLoader.exists(\"res://mac/screen_fit.gd\"):\n\t\tget_tree().root.add_child.call_deferred(load(\"res://mac/screen_fit.gd\").new())\n"
 
 var packer := PCKPacker.new()
 var count := 0

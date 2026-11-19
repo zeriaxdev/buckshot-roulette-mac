@@ -20,7 +20,7 @@ Play [Buckshot Roulette](https://store.steampowered.com/app/2835570/) natively o
 
 ## Why this exists
 
-Buckshot Roulette only comes out for Windows, but it's made in Godot, and Godot runs on macOS. So the builder takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 Mac runtime, with Steam support added. You get a real Mac app: Metal rendering, controllers through Apple's GameController framework, no Wine or CrossOver.
+Buckshot Roulette ships for Windows and Linux. This builder takes the Windows game files Steam downloads for your account and runs them on the official Godot 4.4.1 Mac runtime, with Steam support added. You get a Mac app with Metal rendering, without Wine or CrossOver.
 
 ## Install
 
@@ -53,6 +53,7 @@ The builder preserves the shipped assets and applies these additions and compati
 | --- | --- |
 | GodotSteam extension | The Windows exe has Steam compiled in. On Mac it comes from the official GodotSteam plug-in. |
 | Ownership check in `scripts/Steam.gd` | The game quits with a message unless Steam is running, you're signed in, and your account owns Buckshot Roulette. |
+| Discord presence helper | After the ownership check, reports Playing under Buckshot Roulette's application ID to the running Discord client. It follows your activity-sharing settings and clears when the game exits. No account credentials, binary rename or Discord SDK download is needed. |
 | Godot 4.4 fixes | `MP_ItemResource_User.gd` stops exporting four Node fields that nothing sets (4.4 doesn't allow that in a Resource), and the script class list gets the two keys 4.4 expects. |
 | Table geometry compatibility | The Mac helper rebuilds static table parts in memory to remove a dark panel seam and false gaps around the table edges on Godot 4.4. Their vertices, UVs and materials are preserved. |
 | Scene-transition fixes | Repeating light/display timers stop after leaving the scene tree. Scene changes are deferred until the current callbacks finish, including the death screen's automatic restart. |
@@ -93,6 +94,7 @@ To try the multiplayer table alone, double-click **Test Multiplayer.command**: y
 - The game draws at 960×540 and scales up to your window or screen, same as on Windows.
 - Built and tested on Apple Silicon. Builds are signed on your Mac, not notarized by Apple.
 - Fill Screen is experimental. Mac-page focus, all five controls and both return paths pass an isolated real-menu check; physical controller input still needs a play check. Checked on the menu, Options, the MAC page, the loading screen, the multiplayer lobby, bathroom and table; expanded death, win and heaven views remain unverified.
+- Discord presence publishes profile activity, but does not add verified detection in Added Games. Discord's detection catalog currently lists only the Windows executable for Buckshot; native Mac detection requires a Discord-side update. Discord invitations are not implemented.
 - Not tested yet: a full online match between Mac and Windows players, and Xbox or Switch controllers.
 
 ## Unofficial project

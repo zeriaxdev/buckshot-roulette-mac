@@ -305,8 +305,9 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"Copying the game data failed; see {log}")
         print("3/4 Assembling the app", flush=True)
         shutil.copy2(runtime, app / f"Contents/MacOS/{NAME}")
+        shutil.copy2(ROOT / "tools/discord/discord-presence", app / "Contents/MacOS/discord-presence")
         (app / "Contents/MacOS/launch").write_text(LAUNCHER)
-        for exe in ("launch", NAME):
+        for exe in ("launch", NAME, "discord-presence"):
             (app / "Contents/MacOS" / exe).chmod(0o755)
         shutil.copytree(framework, app / "Contents/Frameworks" / FRAMEWORK, symlinks=True)
         shutil.copytree(ROOT / "tools/native/BuckshotFullscreen.framework", app / "Contents/Frameworks/BuckshotFullscreen.framework")
@@ -316,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
         (app / "Contents/Info.plist").write_bytes(plistlib.dumps(app_metadata()))
         shutil.copy2(ROOT / "NOTICE.md", app / "Contents/Resources/Local build notice.txt")
         print("4/4 Signing locally", flush=True)
+        run(["codesign", "--force", "--sign", "-", str(app / "Contents/MacOS/discord-presence")], log)
         run(["codesign", "--force", "--deep", "--sign", "-", str(app)], log)
         run(["codesign", "--verify", "--deep", "--strict", str(app)], log)
         install_app(app, out, replace_existing)

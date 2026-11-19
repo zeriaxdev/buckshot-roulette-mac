@@ -42,3 +42,12 @@ jobs:
         run: python3 tools/native/build.py
       - name: Verify packaged architectures
         run: python3 -m unittest discover -s tests -p test_native_fullscreen.py
+
+  discord:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild the asset-free Discord helper for both architectures
+        run: python3 tools/discord/build.py
+      - name: Check framing, ping, cleanup and malformed replies with a fake local client
+        run: python3 -m unittest discover -s tests -p test_discord_presence.py
